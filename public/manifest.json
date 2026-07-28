@@ -1,0 +1,15 @@
+{
+  "name": "Mythras — Combat",
+  "version": "0.1.0",
+  "manifest_version": 1,
+  "author": "Tutson",
+  "icon": "/icon.svg",
+  "description": "Initiative by Cycles, Action Points and wounds by hit location for Mythras.",
+  "action": {
+    "title": "Mythras",
+    "icon": "/icon.svg",
+    "popover": "/",
+    "height": 460,
+    "width": 320
+  }
+}

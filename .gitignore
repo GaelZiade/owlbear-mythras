@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+
+# Los manuales son material con derechos de autor: sirven de referencia local
+# para el desarrollo y no deben publicarse en el repositorio.
+*.pdf

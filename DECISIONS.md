@@ -1,0 +1,170 @@
+# Design decisions
+
+Living document. Records what was decided, why, and what is still open.
+Rules citations come from *Mythras* core rules and *Mythras Imperative* (ORC).
+
+---
+
+## 1. Rules findings that shape the architecture
+
+### 1.1 Combat has three levels, not two
+
+> **Round** (five seconds) contains several **Cycles** → each Cycle is an
+> initiative countdown in which every participant takes a **Turn**.
+
+When a Cycle ends, a new one starts for whoever still has Action Points. The
+Round ends when nobody does, and Action Points are then restored.
+
+The book's worked example: Anathaym parries three arrows, spending all three of
+her Action Points reactively, so when her Turn arrives she cannot act. In the
+second Cycle the centaurs reload, and the Round ends.
+
+**Consequence:** a conventional initiative tracker cannot represent this. The
+engine is built on `Round → Cycle → Turn`.
+
+### 1.2 Proactive vs reactive actions
+
+- **Proactive**: only on your own Turn. One per Cycle. Costs 1 Action Point.
+- **Reactive**: any time, against a threat. One reaction per threat, any number
+  per Cycle while points remain.
+
+**Consequence:** Action Points must be spendable at any moment, not only during
+the owner's turn. Spending is independent of the turn pointer.
+
+### 1.3 Initiative
+
+- `1d10 + Initiative Bonus`, rolled at the start of the fight.
+- **Persists** between Rounds until something forces a reroll.
+- **Ties act simultaneously.** The tracker must not break them arbitrarily.
+- `Initiative Bonus = (INT + DEX) / 2`, less `armor ENC / 5` rounded up.
+
+### 1.4 Derived attributes (verified tables)
+
+**Action Points** from `INT + DEX`: ≤12 → 1; 13–24 → 2; 25–36 → 3; +1 per further 12.
+
+**Hit Points per location** from `CON + SIZ`:
+
+| Location | 1-5 | 6-10 | 11-15 | 16-20 | 21-25 | 26-30 | 31-35 | 36-40 | +5 pts |
+|---|---|---|---|---|---|---|---|---|---|
+| Each Leg | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | +1 |
+| Abdomen | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | +1 |
+| Chest | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | +1 |
+| Each Arm | 1 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | +1 |
+| Head | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | +1 |
+
+Both verified against the book's Anathaym example (INT 14 + DEX 16 = 30 → 3 AP;
+CON 13 + SIZ 10 = 23 → 5 head/legs, 7 chest, 6 abdomen, 4 arms). Exact match.
+
+### 1.5 Wound levels are derived
+
+| Level | Condition |
+|---|---|
+| Minor | location Hit Points > 0 |
+| Serious | ≤ 0 |
+| Major | ≤ −(starting Hit Points) |
+
+Being knocked out, however, comes from opposed Endurance rolls the extension
+cannot know about. The model therefore needs both a **derived** wound level and
+a **declared** `defeated` flag.
+
+### 1.6 Hit locations are not a fixed enum
+
+Humanoids use seven locations on a d20, but the bestiary has wings, tails, claws
+and forequarters, each creature with its own table in `AP/HP` form. Locations are
+a **data-driven profile**, never `type HitLocation = 'head' | 'chest' | …`.
+
+### 1.7 "AP" is ambiguous
+
+Mythras abbreviates both Action Points and Armor Points as AP. **Rule: never
+abbreviate.** `actionPoints` and `armorPoints`, always.
+
+---
+
+## 2. Functional decisions (made by the project owner)
+
+| # | Decision | Choice |
+|---|---|---|
+| F1 | Turn model fidelity | **Full Cycles** (Round → Cycle → Turn) |
+| F2 | Edit permissions | **Players edit their own**; the GM controls NPCs and can override |
+| F3 | Where combatants come from | **Scene tokens, with the option to add loose ones** |
+| F4 | Location presentation | **Compact row + expandable panel** |
+| F5 | Does advancing a turn spend an Action Point? | **No — always spent by hand** |
+| F6 | Who does "Roll initiative" roll for? | **Combatants whose tokens are selected in the scene** |
+| F7 | Skipping combatants with no Action Points | **Skip them, including in the first Cycle** |
+| F8 | Interface language | **English only**, no locale selector |
+
+### 2.1 Documented departure from the rules (F7)
+
+The book gives a spent character a Turn they cannot use. Stopping the tracker on
+someone with no available move is friction at the table, so anyone at zero
+Action Points is skipped outright. Their points still return at the end of the
+Round, so nothing is lost. See `canAct` in `core/combat.ts`.
+
+### 2.2 Accepted trade-off (F5)
+
+Because advancing never spends a point, a Round only ends once someone has spent
+everything by hand. If nobody does, the Cycle counter simply keeps climbing.
+That is what the rules describe, and a visible "Cycle 5" is a useful hint that
+Action Points are not being tracked.
+
+---
+
+## 3. Technical decisions
+
+| # | Decision | Reason |
+|---|---|---|
+| T1 | TypeScript + Vite + React | React for contributor availability; no heavy UI libraries, since this loads in an iframe inside a side panel |
+| T2 | Layers `core/` → `adapters/` → `ui/` | `core/` holds pure rules with no SDK import, testable with Vitest. The only boundary imposed from day one |
+| T3 | The GM's client is the sole authoritative writer | Removes write conflicts between clients entirely |
+| T4 | Combat state in *room* metadata; light marker on the *item* | Survives scene changes; one blob means one write per change. **Still to be validated against the real size limit** |
+| T5 | `schemaVersion` + migrations from the first commit | Without it, the first model change breaks games in progress |
+| T6 | MIT for code, ORC notice for derived data, in separate folders | Open RPG Creative License compliance; "Mythras", logos and art are *Reserved Material* |
+| T7 | English throughout, strings inline | Supersedes the earlier decision to author in Spanish (F8). No i18n library until a second locale is actually wanted |
+| T8 | Undo kept in memory on the GM's client, not persisted | A misclick needs undoing seconds later, not after a reload. Persisting every intermediate state would cost a network round trip per click |
+| T9 | Body diagram matched by location ids, not a stored profile id | Keeps presentation out of the persisted schema: creatures already saved get their diagram with no migration, and unsupported anatomies fall back to the table |
+| T10 | Dev harness via `vite --mode mock` | The app waits on `OBR.onReady` and renders nothing outside Owlbear, which made every interface change a deploy away from being visible |
+
+### 3.1 Tension between F2 and T3, and how it resolves
+
+Players edit their own values, but only the GM writes. Resolved by:
+
+1. The player's client emits a **request** (broadcast message), not a write.
+2. The GM's client validates it against `core/` rules and writes the state.
+3. Every client receives the updated state.
+
+Authorisation uses the player id Owlbear associates with the connection, never an
+id carried inside the message, because message contents come from a remote client.
+
+**Accepted risk:** if the GM disconnects, combat freezes. The interface says so
+explicitly. No automatic failover to another client.
+
+---
+
+## 4. Scope
+
+**Phase 1 — combat (current).** Initiative with simultaneous ties, Round/Cycle/Turn
+engine with automatic Action Point reset, Hit Points and Armor Points per location,
+derived wound levels, manual `defeated` flag, per-player editing, undo.
+
+**Phase 2 — rolls.** Automatic grading of success, failure, critical and fumble,
+with selectable difficulty grades.
+
+**Phase 3 — character sheet.**
+
+Deliberately out of scope for now, but not blocked: NPC templates, JSON import
+and export, skills, combat effects, inventory, magic, cults, passions.
+
+---
+
+## 5. Open questions
+
+1. **The real Owlbear metadata size limit.** Not stated in the public docs and
+   `docs.owlbear.rodeo` blocks automated reads. Needs measuring before T4 is
+   considered settled.
+2. **Token deleted mid-combat** (a consequence of F3). Today the combatant stays
+   in the list with a `tokenId` pointing at nothing.
+3. **The Delay action.** The rules let a character hold an action to react later.
+   Not yet decided whether it belongs in phase 1.
+4. **Side initiative**, a common optional rule. Not decided.
+5. **Inherited advisory**: `@owlbear-rodeo/sdk@3.1.0` depends on a `uuid` version
+   with a moderate advisory. No fix available and it does not affect our usage.

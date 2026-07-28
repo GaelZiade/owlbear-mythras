@@ -1,0 +1,699 @@
+/*
+ * Colours arrive from Owlbear as CSS variables (see useOwlbearTheme). The
+ * fallbacks below cover startup, before the host answers.
+ *
+ * The typeface is deliberately the host's system font rather than something
+ * with a personality of its own: this panel sits inside Owlbear's chrome, and a
+ * distinctive face would read as a foreign body. The character lives in the
+ * hierarchy and in the numerals instead.
+ */
+:root {
+  --bg: #1e2231;
+  --surface: #272c3f;
+  --text: #f4f4f5;
+  --text-dim: #a1a1aa;
+  --text-off: #6b7280;
+  --accent: #bb99ff;
+  --accent-text: #1e2231;
+
+  --minor: #d9a441;
+  --serious: #e0793f;
+  --major: #d95555;
+
+  --line: color-mix(in srgb, var(--text) 12%, transparent);
+  --raise: color-mix(in srgb, var(--text) 7%, transparent);
+
+  --r: 6px;
+  --tap: 26px;
+}
+
+:root[data-mode="light"] {
+  --minor: #a8700d;
+  --serious: #b5501a;
+  --major: #b32d2d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  cursor: pointer;
+  /*
+   * Buttons carry a user-agent padding of roughly 1px 6px. On the fixed-size
+   * icon buttons that padding plus the glyph exceeds the declared width, and the
+   * icon overflows its own box to the right instead of sitting centred. Every
+   * button that wants padding sets it explicitly below.
+   */
+  padding: 0;
+}
+
+button:disabled {
+  color: var(--text-off);
+  cursor: default;
+}
+
+input,
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 3px 5px;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+path[role="button"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.dim {
+  color: var(--text-off);
+}
+
+/* ---------- shell ---------- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.readout {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.readout-round {
+  font-weight: 650;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.readout-cycle {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.readout-idle {
+  color: var(--text-dim);
+}
+
+/*
+ * The toolbar is its own full-width row of four equal cells, with the combat
+ * start/stop control kept up beside the readout because it is the one that
+ * changes what the whole panel means. An earlier version crammed everything into
+ * one line of differently sized buttons across two ragged rows, which read as an
+ * accident rather than a control strip.
+ */
+.toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.toolbar button,
+.state-toggle {
+  height: var(--tap);
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+.state-toggle {
+  width: 34px;
+  flex: 0 0 auto;
+}
+
+.toolbar button:hover:not(:disabled),
+.state-toggle:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--raise);
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.danger {
+  color: var(--major);
+}
+
+.toolbar button:disabled,
+.state-toggle:disabled {
+  opacity: 0.4;
+}
+
+.notice {
+  margin: 0;
+  padding: 10px 8px;
+  text-align: center;
+  color: var(--text-dim);
+  border-radius: var(--r);
+}
+
+.notice-alert {
+  color: var(--major);
+  border: 1px solid currentColor;
+  text-align: left;
+}
+
+.notice-hint {
+  background: var(--surface);
+  text-align: left;
+}
+
+/* ---------- initiative list ---------- */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/*
+ * The left rail is how you read position in the Cycle: bright for whoever is
+ * up, faded for those who already went, muted for anyone with no Action Points
+ * left. Without it the list only ever told you one thing.
+ */
+.row {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--r);
+  padding-left: 3px;
+  transition: opacity 120ms ease;
+}
+
+.row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: var(--r) 0 0 var(--r);
+  background: transparent;
+}
+
+.row-active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+
+.row-active::before {
+  background: var(--accent);
+}
+
+.row-acted {
+  opacity: 0.5;
+}
+
+.row-acted::before {
+  background: var(--text-off);
+}
+
+.row-out {
+  opacity: 0.42;
+}
+
+.row-defeated .name {
+  text-decoration: line-through;
+  color: var(--text-dim);
+}
+
+.row-main {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 5px 4px 3px;
+}
+
+.ghost {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--text-off);
+}
+
+.ghost:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--raise);
+}
+
+.ghost.on,
+.ghost.danger.on {
+  color: var(--major);
+}
+
+.ghost.step {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.expand {
+  width: 16px;
+}
+
+.initiative {
+  width: 34px;
+  flex: 0 0 auto;
+  text-align: center;
+  padding: 2px;
+  font-weight: 600;
+  background: transparent;
+  border-color: transparent;
+}
+
+.initiative:hover,
+.initiative:focus {
+  border-color: var(--line);
+  background: var(--bg);
+}
+
+.initiative-static {
+  color: var(--text-dim);
+  line-height: 22px;
+}
+
+.identity {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wound {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.wound-minor {
+  color: var(--minor);
+}
+.wound-serious {
+  color: var(--serious);
+}
+.wound-major {
+  color: var(--major);
+}
+
+.action-points {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+}
+
+.pips {
+  display: inline-flex;
+  gap: 2px;
+  min-width: 26px;
+  justify-content: center;
+  align-items: center;
+}
+
+.pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--text-off);
+}
+
+.pip-on {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+.pips-numeric {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+/* ---------- detail ---------- */
+
+.detail {
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diagram {
+  width: 100%;
+  max-width: 176px;
+  align-self: center;
+  overflow: visible;
+}
+
+.region path {
+  fill: var(--raise);
+  stroke: var(--text-off);
+  stroke-width: 1.2;
+  cursor: pointer;
+  transition: fill 120ms ease, stroke 120ms ease;
+}
+
+.region path:hover {
+  stroke: var(--text);
+}
+
+.region-minor path {
+  fill: color-mix(in srgb, var(--minor) 45%, transparent);
+  stroke: var(--minor);
+}
+.region-serious path {
+  fill: color-mix(in srgb, var(--serious) 55%, transparent);
+  stroke: var(--serious);
+}
+.region-major path {
+  fill: color-mix(in srgb, var(--major) 70%, transparent);
+  stroke: var(--major);
+}
+
+.region-selected path {
+  stroke: var(--accent);
+  stroke-width: 2.4;
+}
+
+.leader {
+  stroke: var(--text-off);
+  stroke-width: 1;
+}
+
+.region-label {
+  fill: var(--text-dim);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.region-selected .region-label {
+  fill: var(--text);
+  font-weight: 700;
+}
+
+.locations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.location {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 5px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.location:hover {
+  background: var(--raise);
+}
+
+.location-selected {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.location-range {
+  width: 32px;
+  flex: 0 0 auto;
+  color: var(--text-off);
+  font-size: 10.5px;
+}
+
+.location-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-armor {
+  flex: 0 0 auto;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.location-armor::before {
+  content: "⛊ ";
+  color: var(--text-off);
+}
+
+.location-hp {
+  width: 42px;
+  flex: 0 0 auto;
+  text-align: right;
+  font-weight: 600;
+}
+
+.location-minor .location-hp {
+  color: var(--minor);
+}
+.location-serious .location-hp {
+  color: var(--serious);
+}
+.location-major .location-hp {
+  color: var(--major);
+}
+
+/* ---------- damage ---------- */
+
+.damage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.segment {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+.segment button {
+  flex: 1;
+  padding: 4px;
+  border-radius: 0;
+  color: var(--text-dim);
+}
+
+.segment button.on {
+  background: var(--raise);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.damage-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.damage-input input[type="number"] {
+  width: 58px;
+  flex: 0 0 auto;
+  text-align: center;
+  font-weight: 600;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.check input {
+  width: auto;
+}
+
+.preview {
+  margin: 0;
+  padding: 5px 7px;
+  border-radius: var(--r);
+  background: var(--bg);
+  border-left: 3px solid var(--text-off);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-empty {
+  color: var(--text-off);
+  border-left-color: transparent;
+}
+
+.preview-minor {
+  border-left-color: var(--minor);
+}
+.preview-serious {
+  border-left-color: var(--serious);
+}
+.preview-major {
+  border-left-color: var(--major);
+}
+
+.preview-note {
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+.apply {
+  padding: 7px;
+  font-weight: 600;
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+.apply:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-off);
+}
+
+.settings label:first-child {
+  grid-column: 1 / -1;
+}
+
+/* ---------- footer ---------- */
+
+.footer {
+  margin-top: auto;
+  padding-top: 4px;
+  display: flex;
+  gap: 6px;
+}
+
+/* Undo sits next to Next turn on purpose: that is the button people misclick. */
+.undo {
+  width: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+.undo:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.undo:disabled {
+  opacity: 0.4;
+}
+
+.next-turn {
+  flex: 1 1 auto;
+  padding: 10px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.next-turn:disabled {
+  background: var(--surface);
+  color: var(--text-off);
+}
