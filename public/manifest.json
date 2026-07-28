@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "manifest_version": 1,
   "author": "Tutson",
+  "homepage_url": "https://github.com/GaelZiade/owlbear-mythras",
   "icon": "/icon.svg",
   "description": "Initiative by Cycles, Action Points and wounds by hit location for Mythras.",
   "action": {

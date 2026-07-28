@@ -156,7 +156,44 @@ and export, skills, combat effects, inventory, magic, cults, passions.
 
 ---
 
-## 5. Open questions
+## 5. Importing from the Mythras Encounter Generator (planned, phase 2)
+
+[MEG](https://mythras.skoll.xyz/) holds thousands of community-maintained enemy
+templates. Feasibility was checked before committing to it:
+
+| Endpoint | Returns |
+|---|---|
+| `https://mythras.skoll.xyz/index_json/` | Every template: `name`, `race`, `rank`, `owner`, `tags`, `id`, `notes`. 4,867 entries, ~2.9 MB |
+| `https://mythras.skoll.xyz/generate_enemies_json/?id=<id>&amount=<n>` | Rolled creatures with `stats`, `skills`, `hit_locations`, `combat_styles`, `attributes`, spells |
+
+**It clears the blocker that mattered.** The server sends
+`Access-Control-Allow-Origin: *` over HTTPS, so the extension can fetch it
+directly from the browser. Without that we would have needed a backend to proxy
+the calls, which would have ended the "static extension" architecture.
+
+**The data maps almost one to one.** `attributes.action_points` is our
+`maxActionPoints`; `attributes.strike_rank` (`"11(13-2)"`) is the Initiative
+Bonus with the armor penalty already applied; and each entry in `hit_locations`
+(`{name, range: "01-03", hp, ap}`) is one of our `HitLocation` records. Only the
+`range` and `strike_rank` strings need parsing.
+
+**It vindicates §1.6.** A sample template returns *Right hind Leg* and
+*Hindquarters*: a quadruped. Had hit locations been a fixed humanoid enum, this
+import would require rewriting the model rather than adding a parser.
+
+### Rules for the integration
+
+1. **Fetch live, never vendor the data into this repository.** MEG content is
+   authored by third parties and includes licensed settings material. Fetching
+   into the user's own session is not redistribution, and it is also what makes
+   the catalogue stay current as people add to MEG — which is the point.
+2. **Treat the endpoints as undocumented.** No terms, no versioning, no
+   stability promise. The importer must degrade gracefully when they change or
+   disappear, and must never be on the panel's critical path.
+3. **Be a good neighbour.** Cache the index rather than refetching it, and
+   contact the site author before sending real traffic.
+
+## 6. Open questions
 
 1. **The real Owlbear metadata size limit.** Not stated in the public docs and
    `docs.owlbear.rodeo` blocks automated reads. Needs measuring before T4 is

@@ -104,9 +104,15 @@ clients holding different truths.
 ## Roadmap
 
 1. **Combat** — initiative, Cycles, Action Points, wounds by location. *(current)*
-2. **Rolls** — automatic success, failure, critical and fumble grading with
+2. **Creature import** from the [Mythras Encounter Generator](https://mythras.skoll.xyz/),
+   fetched live so the catalogue stays current as people add to it. Feasibility
+   and the rules for the integration are in [DECISIONS.md](DECISIONS.md#5-importing-from-the-mythras-encounter-generator-planned-phase-2).
+3. **Rolls** — automatic success, failure, critical and fumble grading with
    selectable difficulty grades.
-3. **Character sheets.**
+4. **Character sheets.**
+
+Bug reports and ideas are welcome in
+[Issues](https://github.com/GaelZiade/owlbear-mythras/issues).
 
 ## Licences
 
