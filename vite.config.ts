@@ -1,3 +1,6 @@
+import { readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -29,11 +32,55 @@ function refuseManifestInMockMode(): Plugin {
   };
 }
 
+/**
+ * Rewrites the manifest's paths to match the deployment base.
+ *
+ * The manifest points at the icon and the popover with root-absolute paths,
+ * which is right when the extension is served from a domain root and wrong on
+ * GitHub Pages, where it lives under /<repo>/. Vite rebases the assets it
+ * bundles, but `public/manifest.json` is copied verbatim, so Owlbear would ask
+ * the domain root for files that are one directory down and get nothing.
+ *
+ * Rewriting at build time keeps one manifest in the repository: the source
+ * stays correct for local development and the built copy is correct wherever it
+ * is published.
+ */
+function rebaseManifest(): Plugin {
+  let base = "/";
+  let manifestPath = "";
+
+  return {
+    name: "mythras:rebase-manifest",
+    apply: "build",
+    configResolved(config) {
+      base = config.base;
+      manifestPath = resolve(config.root, config.build.outDir, "manifest.json");
+    },
+    async closeBundle() {
+      if (base === "/") return;
+
+      const prefix = base.replace(/\/$/, "");
+      const rebase = (path: string) => (path.startsWith("/") ? `${prefix}${path}` : path);
+
+      const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+        icon: string;
+        action: { icon: string; popover: string };
+      };
+
+      manifest.icon = rebase(manifest.icon);
+      manifest.action.icon = rebase(manifest.action.icon);
+      manifest.action.popover = rebase(manifest.action.popover);
+
+      await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const isMock = mode === "mock";
 
   return {
-    plugins: isMock ? [react(), refuseManifestInMockMode()] : [react()],
+    plugins: isMock ? [react(), refuseManifestInMockMode()] : [react(), rebaseManifest()],
     resolve: {
       // `npm run dev:mock` swaps the SDK for a stub so the panel renders in a
       // plain browser tab. Without it the app waits forever on OBR.onReady and

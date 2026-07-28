@@ -9,6 +9,7 @@
     "dev": "vite",
     "dev:mock": "vite --mode mock --port 5174 --strictPort false",
     "build": "tsc --noEmit && vite build",
+    "build:pages": "tsc --noEmit && vite build --base=/owlbear-mythras/",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
