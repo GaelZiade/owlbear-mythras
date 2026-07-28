@@ -71,10 +71,20 @@ Notes:
 - If something looks stale after a code change, close and reopen the panel: the
   iframe reloads wholesale.
 
-## Installing in Owlbear
+## Installing
 
-1. `npm run build` and publish `dist/` on any static HTTPS host.
-2. *Profile* → **Add Extension** → the URL of your `manifest.json`.
+In Owlbear Rodeo: *Profile* → **Add Extension** → paste
+
+```
+https://gaelziade.github.io/owlbear-mythras/manifest.json
+```
+
+That URL always serves whatever is on `main`; every push rebuilds and redeploys
+it, with the typecheck and the test suite gating the deploy.
+
+To host your own copy, `npm run build` and publish `dist/` on any static HTTPS
+host. If it will live under a subpath rather than a domain root, build with
+`vite build --base=/your-path/` so the manifest points at the right place.
 
 ## Architecture
 
