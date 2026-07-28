@@ -9,7 +9,7 @@
  */
 
 /** Version of the persisted state. Changing the model means bumping this and adding a migration. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /**
  * A hit location.
@@ -71,6 +71,25 @@ export interface Combatant {
   defeated: boolean;
 }
 
+/**
+ * The turn currently being taken.
+ *
+ * Holds both where the countdown is and who is taking the turn, because those
+ * are genuinely two different questions once initiatives can tie.
+ *
+ * `combatantIds` is fixed when the turn begins and never recomputed. Deriving it
+ * from "everyone on this initiative" instead was wrong in both directions: a
+ * combatant who arrived on a shared initiative with no Action Points lit up as
+ * active even though they were about to be skipped, and one who spent their last
+ * point mid-turn had to keep the marker, which the same rule could not express.
+ */
+export interface ActiveTurn {
+  /** Position in the Cycle's countdown. */
+  initiative: number;
+  /** Who is taking it. Ties act simultaneously, so this can hold several. */
+  combatantIds: string[];
+}
+
 export interface CombatState {
   schemaVersion: number;
   status: "idle" | "active";
@@ -79,13 +98,13 @@ export interface CombatState {
   /** Cycle within the Round: the initiative countdown. Starts at 1. */
   cycle: number;
   /**
-   * The Initiative value currently holding the turn.
+   * `null` between fights, and while a Round has nobody left able to act.
    *
-   * Stored as a value rather than an index because several combatants can share
-   * an initiative (they act simultaneously) and because the list mutates during
-   * combat: an index breaks when combatants are added or removed, a value does not.
+   * Identifying combatants by id rather than by list position matters because
+   * the list mutates during combat: an index breaks when someone is added or
+   * removed, an id does not.
    */
-  activeInitiative: number | null;
+  activeTurn: ActiveTurn | null;
   combatants: Combatant[];
 }
 
@@ -95,7 +114,7 @@ export function createEmptyState(): CombatState {
     status: "idle",
     round: 0,
     cycle: 0,
-    activeInitiative: null,
+    activeTurn: null,
     combatants: [],
   };
 }

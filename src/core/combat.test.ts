@@ -226,6 +226,34 @@ describe("combat engine", () => {
     expect(names(currentTurn(state))).toEqual(["slow"]);
   });
 
+  /** https://github.com/GaelZiade/owlbear-mythras/issues/1 */
+  it("does not mark a tied combatant active when they arrive with no Action Points", () => {
+    const tied = play(
+      base,
+      added(makeCombatant({ id: "twin", initiative: 12 })),
+      { type: "combat/started" },
+      { type: "actionPoints/changed", combatantId: "twin", delta: -2 },
+      { type: "turn/advanced" },
+    );
+
+    expect(names(currentTurn(tied))).toEqual(["middle"]);
+    expect(turnStatus(tied, find(tied, "middle"))).toBe("active");
+    expect(turnStatus(tied, find(tied, "twin"))).toBe("out");
+  });
+
+  it("keeps a tied combatant active after they spend their last point mid-turn", () => {
+    const tied = play(
+      base,
+      added(makeCombatant({ id: "twin", initiative: 12 })),
+      { type: "combat/started" },
+      { type: "turn/advanced" },
+      { type: "actionPoints/changed", combatantId: "twin", delta: -2 },
+    );
+
+    expect(names(currentTurn(tied)).sort()).toEqual(["middle", "twin"]);
+    expect(turnStatus(tied, find(tied, "twin"))).toBe("active");
+  });
+
   it("keeps the turn marker on whoever spends their last Action Point", () => {
     const state = play(
       base,

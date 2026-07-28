@@ -1,5 +1,5 @@
 import { applyDamage, applyHealing, type DamageOptions } from "./wounds";
-import { SCHEMA_VERSION, type Combatant, type CombatState } from "./types";
+import { SCHEMA_VERSION, type ActiveTurn, type Combatant, type CombatState } from "./types";
 
 /**
  * Mythras combat engine.
@@ -71,18 +71,33 @@ function initiativeOrder(state: CombatState): number[] {
 }
 
 /**
+ * Opens the turn at an initiative value, recording who takes it.
+ *
+ * Membership is decided here, once, from who can act at that moment. Everything
+ * afterwards reads the recorded list, so spending Action Points during a turn
+ * changes what you can do but never who the turn belongs to.
+ */
+function beginTurn(state: CombatState, initiative: number): ActiveTurn {
+  return {
+    initiative,
+    combatantIds: state.combatants
+      .filter((combatant) => combatant.initiative === initiative && canAct(combatant))
+      .map(({ id }) => id),
+  };
+}
+
+/**
  * Combatants holding the turn right now.
  *
- * Deliberately does not filter on Action Points: someone who spends their last
- * point mid-Turn keeps the turn marker until the GM advances. Dropping the
- * highlight the moment they hit zero reads as "it is no longer their turn",
- * which is both wrong and disorienting.
+ * Someone who spends their last Action Point mid-turn stays here until the GM
+ * advances: dropping them the moment they hit zero reads as "it is no longer
+ * their turn", which is both wrong and disorienting. Someone who *arrived* on a
+ * shared initiative with no points was never in the list to begin with.
  */
 export function currentTurn(state: CombatState): Combatant[] {
-  if (state.status !== "active" || state.activeInitiative === null) return [];
-  return state.combatants.filter(
-    (combatant) => combatant.initiative === state.activeInitiative && !combatant.defeated,
-  );
+  if (state.status !== "active" || !state.activeTurn) return [];
+  const taking = new Set(state.activeTurn.combatantIds);
+  return state.combatants.filter((combatant) => taking.has(combatant.id));
 }
 
 export type TurnStatus = "active" | "acted" | "pending" | "out";
@@ -92,10 +107,11 @@ export type TurnStatus = "active" | "acted" | "pending" | "out";
  * instead of only marking whoever is up.
  */
 export function turnStatus(state: CombatState, combatant: Combatant): TurnStatus {
-  if (state.status !== "active" || state.activeInitiative === null) return "pending";
-  if (combatant.initiative === state.activeInitiative && !combatant.defeated) return "active";
+  const turn = state.activeTurn;
+  if (state.status !== "active" || !turn) return "pending";
+  if (turn.combatantIds.includes(combatant.id)) return "active";
   if (!canAct(combatant)) return "out";
-  return combatant.initiative > state.activeInitiative ? "acted" : "pending";
+  return combatant.initiative > turn.initiative ? "acted" : "pending";
 }
 
 export function orderedCombatants(state: CombatState): Combatant[] {
@@ -125,26 +141,27 @@ function advanceTurn(state: CombatState): CombatState {
   const order = initiativeOrder(state);
 
   if (order.length === 0) {
-    const refreshed = refreshActionPoints(state.combatants);
-    const nextRound: CombatState = { ...state, combatants: refreshed };
+    const refreshed: CombatState = { ...state, combatants: refreshActionPoints(state.combatants) };
+    const opening = initiativeOrder(refreshed)[0];
     return {
-      ...nextRound,
+      ...refreshed,
       round: state.round + 1,
       cycle: 1,
-      activeInitiative: initiativeOrder(nextRound)[0] ?? null,
+      activeTurn: opening === undefined ? null : beginTurn(refreshed, opening),
     };
   }
 
-  if (state.activeInitiative === null) {
-    return { ...state, activeInitiative: order[0]! };
+  const current = state.activeTurn;
+  if (!current) {
+    return { ...state, activeTurn: beginTurn(state, order[0]!) };
   }
 
-  const next = order.find((initiative) => initiative < state.activeInitiative!);
+  const next = order.find((initiative) => initiative < current.initiative);
   if (next !== undefined) {
-    return { ...state, activeInitiative: next };
+    return { ...state, activeTurn: beginTurn(state, next) };
   }
 
-  return { ...state, cycle: state.cycle + 1, activeInitiative: order[0]! };
+  return { ...state, cycle: state.cycle + 1, activeTurn: beginTurn(state, order[0]!) };
 }
 
 function updateCombatant(
@@ -184,13 +201,17 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
         round: 1,
         cycle: 1,
         combatants: refreshActionPoints(state.combatants),
-        activeInitiative: null,
+        activeTurn: null,
       };
-      return { ...started, activeInitiative: initiativeOrder(started)[0] ?? null };
+      const opening = initiativeOrder(started)[0];
+      return {
+        ...started,
+        activeTurn: opening === undefined ? null : beginTurn(started, opening),
+      };
     }
 
     case "combat/ended":
-      return { ...state, status: "idle", round: 0, cycle: 0, activeInitiative: null };
+      return { ...state, status: "idle", round: 0, cycle: 0, activeTurn: null };
 
     case "turn/advanced":
       return advanceTurn(state);
