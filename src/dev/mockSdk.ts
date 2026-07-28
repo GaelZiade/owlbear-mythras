@@ -7,10 +7,23 @@
  * from being visible.
  *
  * Vite swaps `@owlbear-rodeo/sdk` for this module when MOCK_OBR is set. It fakes
- * only what the adapters actually call, and it fakes a GM with a small party so
- * the whole panel is reachable. It is a drawing board, not a simulator: nothing
- * here should be trusted to prove that the real integration works.
+ * only what the adapters actually call. It is a drawing board, not a simulator:
+ * nothing here should be trusted to prove that the real integration works.
+ *
+ * By default it fakes a GM with a small party. Add `?as=player-1` to the URL to
+ * see the panel as that player sees it instead — half the interface is decided
+ * by role, and until this existed the player's half could only be looked at by
+ * deploying and opening a second browser.
  */
+
+import { reduce, type CombatEvent } from "../core/combat";
+import { buildLocations, HUMANOID_PROFILE } from "../core/locations";
+import { SCHEMA_VERSION, type Combatant, type CombatState } from "../core/types";
+import {
+  COMBAT_METADATA_KEY,
+  isCombatRequest,
+  isEventAllowedForPlayer,
+} from "../adapters/owlbear/protocol";
 
 export interface Item {
   id: string;
@@ -55,8 +68,75 @@ const ITEMS: Item[] = [
 /** Only some tokens are "selected", so selected and all behave differently. */
 const SELECTION = ["token-1", "token-2"];
 
-let roomMetadata: Record<string, unknown> = {};
+/**
+ * Who to pretend to be, from `?as=` in the URL. Anything unrecognised is the GM,
+ * so the default behaviour of `npm run dev:mock` is unchanged.
+ */
+const AS_PLAYER =
+  PLAYERS.find(
+    (player) => player.id === new URLSearchParams(window.location.search).get("as"),
+  ) ?? null;
+
+function mockCombatant(id: string, name: string, initiative: number, ownerId?: string): Combatant {
+  return {
+    id,
+    name,
+    initiative,
+    initiativeBonus: 10,
+    actionPoints: 2,
+    maxActionPoints: 2,
+    locations: buildLocations(HUMANOID_PROFILE, 23),
+    defeated: false,
+    ...(ownerId === undefined ? {} : { ownerId }),
+  };
+}
+
+/**
+ * A fight already under way, seeded only when impersonating a player.
+ *
+ * Players cannot start a fight or add anyone to it, so a player opening an empty
+ * room sees "the GM has not set up the fight yet" and nothing else — which is
+ * correct, and useless for looking at the interface.
+ */
+function seededFight(): CombatState {
+  const combatants = [
+    mockCombatant("c-anathaym", "Anathaym", 17, "player-1"),
+    mockCombatant("c-zamothis", "Zamothis", 12, "player-2"),
+    mockCombatant("c-centaur", "Centaur Raider", 14),
+  ];
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    status: "active",
+    round: 1,
+    cycle: 1,
+    activeTurn: { initiative: 17, combatantIds: ["c-anathaym"] },
+    combatants,
+  };
+}
+
+let roomMetadata: Record<string, unknown> = AS_PLAYER
+  ? { [COMBAT_METADATA_KEY]: seededFight() }
+  : {};
 const metadataListeners = new Set<(metadata: Record<string, unknown>) => void>();
+
+/**
+ * Stands in for the GM's client receiving a player's request.
+ *
+ * The real flow is: player broadcasts, the GM validates against `protocol.ts`
+ * and writes. With one browser there is no GM to receive anything, so the mock
+ * runs the same check and the same reducer. It deliberately reuses the real
+ * authorisation function rather than waving requests through, because a mock
+ * that always says yes would hide exactly the bug worth catching here.
+ */
+function applyAsAbsentGm(data: unknown): void {
+  if (!AS_PLAYER || !isCombatRequest(data)) return;
+
+  const current = (roomMetadata[COMBAT_METADATA_KEY] as CombatState | undefined) ?? seededFight();
+  if (!isEventAllowedForPlayer(data.event as CombatEvent, AS_PLAYER.id, current)) return;
+
+  roomMetadata = { ...roomMetadata, [COMBAT_METADATA_KEY]: reduce(current, data.event) };
+  for (const listener of metadataListeners) listener(roomMetadata);
+}
 
 /**
  * Says out loud that this is not Owlbear.
@@ -68,7 +148,9 @@ const metadataListeners = new Set<(metadata: Record<string, unknown>) => void>()
  */
 function announceMock(): void {
   const banner = document.createElement("div");
-  banner.textContent = "MOCK DATA — not connected to Owlbear";
+  banner.textContent = AS_PLAYER
+    ? `MOCK DATA — as ${AS_PLAYER.name}, player`
+    : "MOCK DATA — not connected to Owlbear";
   banner.setAttribute(
     "style",
     [
@@ -106,12 +188,20 @@ const OBR = {
     },
   },
   player: {
-    getRole: async () => "GM" as const,
-    getId: async () => "gm",
+    getRole: async () => (AS_PLAYER ? ("PLAYER" as const) : ("GM" as const)),
+    getId: async () => AS_PLAYER?.id ?? "gm",
     getSelection: async () => SELECTION,
   },
   party: {
-    getPlayers: async () => PLAYERS,
+    // A player needs to see a GM in the party, or the panel reports that nobody
+    // is connected to apply their changes.
+    getPlayers: async () =>
+      AS_PLAYER
+        ? [
+            ...PLAYERS,
+            { id: "gm", connectionId: "c-gm", role: "GM" as const, name: "GM", color: "#cccccc" },
+          ]
+        : PLAYERS,
     onChange: () => () => {},
   },
   scene: {
@@ -124,7 +214,7 @@ const OBR = {
     },
   },
   broadcast: {
-    sendMessage: async () => {},
+    sendMessage: async (_channel: string, data: unknown) => applyAsAbsentGm(data),
     onMessage: () => () => {},
   },
   theme: {

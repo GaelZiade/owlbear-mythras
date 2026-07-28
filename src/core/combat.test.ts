@@ -408,3 +408,78 @@ describe("combat engine", () => {
     expect(find(state, "anathaym").actionPoints).toBe(3);
   });
 });
+
+describe("setting Hit Points outright", () => {
+  function withChest(): CombatState {
+    return play(createEmptyState(), added(makeCombatant({ id: "hero" })));
+  }
+
+  function chest(state: CombatState) {
+    const location = find(state, "hero").locations.find(({ id }) => id === "chest");
+    if (!location) throw new Error("No chest");
+    return location;
+  }
+
+  it("sets Hit Points to a given value rather than by a difference", () => {
+    const state = reduce(withChest(), {
+      type: "location/hitPointsChanged",
+      combatantId: "hero",
+      locationId: "chest",
+      hitPoints: 3,
+    });
+    expect(chest(state).hitPoints).toBe(3);
+  });
+
+  it("does not allow more Hit Points than the location's maximum", () => {
+    const state = reduce(withChest(), {
+      type: "location/hitPointsChanged",
+      combatantId: "hero",
+      locationId: "chest",
+      hitPoints: 99,
+    });
+    expect(chest(state).hitPoints).toBe(chest(state).maxHitPoints);
+  });
+
+  /** Negative Hit Points are the whole basis of Serious and Major wounds. */
+  it("keeps negative Hit Points so wound levels survive", () => {
+    const state = reduce(withChest(), {
+      type: "location/hitPointsChanged",
+      combatantId: "hero",
+      locationId: "chest",
+      hitPoints: -8,
+    });
+    expect(chest(state).hitPoints).toBe(-8);
+    expect(woundLevel(chest(state))).toBe("major");
+  });
+
+  it("fills an untouched location when its maximum is set", () => {
+    const state = reduce(withChest(), {
+      type: "location/maxHitPointsChanged",
+      combatantId: "hero",
+      locationId: "chest",
+      maxHitPoints: 9,
+    });
+    expect(chest(state)).toMatchObject({ maxHitPoints: 9, hitPoints: 9 });
+  });
+
+  it("keeps the damage already taken when the maximum changes", () => {
+    const wounded = play(
+      withChest(),
+      { type: "location/damaged", combatantId: "hero", locationId: "chest", amount: 3 },
+      { type: "location/maxHitPointsChanged", combatantId: "hero", locationId: "chest", maxHitPoints: 10 },
+    );
+    // Started at 7, took 3, so 4 left; raising the maximum to 10 leaves 7.
+    expect(chest(wounded)).toMatchObject({ maxHitPoints: 10, hitPoints: 7 });
+  });
+
+  /** At zero the Major threshold collapses onto the Serious one. */
+  it("refuses to take a location below one maximum Hit Point", () => {
+    const state = reduce(withChest(), {
+      type: "location/maxHitPointsChanged",
+      combatantId: "hero",
+      locationId: "chest",
+      maxHitPoints: 0,
+    });
+    expect(chest(state).maxHitPoints).toBe(1);
+  });
+});

@@ -47,7 +47,19 @@ export type CombatEvent =
       ignoreArmor?: boolean;
     }
   | { type: "location/healed"; combatantId: string; locationId: string; amount: number }
-  | { type: "location/armorChanged"; combatantId: string; locationId: string; armorPoints: number };
+  | { type: "location/armorChanged"; combatantId: string; locationId: string; armorPoints: number }
+  /**
+   * Sets Hit Points outright, rather than by the difference damage and healing
+   * apply. Setting up a character means entering what the sheet says, and
+   * correcting a mistyped total should not require working out the delta.
+   */
+  | { type: "location/hitPointsChanged"; combatantId: string; locationId: string; hitPoints: number }
+  | {
+      type: "location/maxHitPointsChanged";
+      combatantId: string;
+      locationId: string;
+      maxHitPoints: number;
+    };
 
 /**
  * Whether a combatant can still take a Turn.
@@ -292,5 +304,32 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
         ...location,
         armorPoints: Math.max(0, event.armorPoints),
       }));
+
+    /**
+     * Capped at the maximum but deliberately not floored at zero: negative Hit
+     * Points are what distinguishes a Serious wound from a Major one, so
+     * clamping them away would erase the distinction the rules turn on.
+     */
+    case "location/hitPointsChanged":
+      return updateLocation(state, event.combatantId, event.locationId, (location) => ({
+        ...location,
+        hitPoints: Math.min(location.maxHitPoints, event.hitPoints),
+      }));
+
+    /**
+     * Raising or lowering the maximum keeps the damage already taken, so a
+     * combatant edited mid-fight stays as wounded as they were. Setting the
+     * maximum on an untouched location therefore fills it, which is what
+     * entering a character's sheet is meant to do.
+     *
+     * A location cannot drop below 1 Hit Point: at zero the Major Wound
+     * threshold collapses onto the Serious one and every hit reads as Major.
+     */
+    case "location/maxHitPointsChanged":
+      return updateLocation(state, event.combatantId, event.locationId, (location) => {
+        const maxHitPoints = Math.max(1, event.maxHitPoints);
+        const damageTaken = location.maxHitPoints - location.hitPoints;
+        return { ...location, maxHitPoints, hitPoints: maxHitPoints - damageTaken };
+      });
   }
 }

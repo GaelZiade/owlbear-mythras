@@ -100,7 +100,33 @@ someone with no available move is friction at the table, so anyone at zero
 Action Points is skipped outright. Their points still return at the end of the
 Round, so nothing is lost. See `canAct` in `core/combat.ts`.
 
-### 2.2 Accepted trade-off (F5)
+### 2.2 Where the player's authority actually ends (F2)
+
+F2 was implemented as "a player may act during the fight", which is narrower than
+what it says. Players could spend Action Points, roll initiative, apply damage and
+healing — but their Hit Points, Armor Points, Initiative Bonus and maximum Action
+Points were all locked behind the GM's client, so setting up a character meant
+reading numbers aloud and having the GM type them in.
+
+The line is now drawn between **a character** and **the fight**:
+
+| The owner may set | The GM alone may |
+|---|---|
+| Hit Points and maximum Hit Points, per location | Start and end combat |
+| Armor Points, per location | Advance the turn |
+| Initiative and Initiative Bonus | Add and remove combatants |
+| Action Points and maximum Action Points | Reassign ownership |
+| Out of the fight | Rename |
+
+Nothing in the first column can affect anybody else, and everything in the second
+changes the encounter rather than one sheet. The GM keeps all of it, since the GM
+owns every combatant nobody else does.
+
+This is a permission change, not a model change: `CombatState` is untouched, so
+there is no migration and no schema bump. Enforcement stays where §3.1 puts it —
+on the GM's client, against the connection's player id.
+
+### 2.3 Accepted trade-off (F5)
 
 Because advancing never spends a point, a Round only ends once someone has spent
 everything by hand. If nobody does, the Cycle counter simply keeps climbing.
@@ -123,6 +149,7 @@ Action Points are not being tracked.
 | T8 | Undo kept in memory on the GM's client, not persisted | A misclick needs undoing seconds later, not after a reload. Persisting every intermediate state would cost a network round trip per click |
 | T9 | Body diagram matched by location ids, not a stored profile id | Keeps presentation out of the persisted schema: creatures already saved get their diagram with no migration, and unsupported anatomies fall back to the table |
 | T10 | Dev harness via `vite --mode mock` | The app waits on `OBR.onReady` and renders nothing outside Owlbear, which made every interface change a deploy away from being visible |
+| T11 | The mock harness can impersonate a player (`?as=player-1`) | Half the interface is decided by role, and the mock only ever played the GM. The player's half was therefore never looked at except by deploying and opening a second browser, which is how §2.2 shipped. The stub answers player requests by running the *real* authorisation check, so a mock that waves everything through cannot hide the next one |
 
 ### 3.1 Tension between F2 and T3, and how it resolves
 

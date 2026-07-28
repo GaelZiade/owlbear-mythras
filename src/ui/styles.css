@@ -653,8 +653,29 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text-off);
 }
 
-.settings label:first-child {
+/*
+ * Explicit rather than :first-child, because the first control is not always
+ * the same one: the owner dropdown is the GM's alone, so a player's panel opens
+ * straight onto the Initiative Bonus, which should not span the row.
+ */
+.settings-wide {
   grid-column: 1 / -1;
+}
+
+/* The selected location's three numbers, kept together under its name. */
+.settings-location {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.settings-caption {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
 }
 
 /* ---------- footer ---------- */

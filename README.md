@@ -23,8 +23,10 @@ initiative by Cycles, Action Points, and wounds by hit location.
   it would cause, and how much the armor absorbed.
 - **Out of the fight** toggle that skips a combatant in the initiative order.
 - **Undo**, sitting next to Next turn — which is the button people misclick.
-- Each player edits their own combatant's Action Points, Hit Points and
-  Initiative. The GM controls everything.
+- Each player edits their own combatant: Hit Points and Armor Points per
+  location, Action Points, Initiative and Initiative Bonus. The GM controls
+  everything, and everything about the fight itself — starting it, advancing the
+  turn, who is in it — stays with the GM alone.
 
 ## Development
 
@@ -45,6 +47,10 @@ npm install
 `npm run dev:mock` to work on the interface without deploying — it fakes a GM
 with a small party so the whole panel is reachable. It is a drawing board, not a
 simulator: it proves nothing about the real integration.
+
+Add `?as=player-1` (or `player-2`) to the mock's URL to see the panel as a player
+rather than the GM, in a fight already under way. Role decides half of what the
+interface shows, so it is worth looking at both before calling a change done.
 
 ## Test room
 

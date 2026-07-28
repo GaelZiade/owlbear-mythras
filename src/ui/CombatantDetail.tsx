@@ -180,32 +180,39 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
         </div>
       )}
 
-      {isGm && (
+      {/*
+        A character's own numbers, editable by whoever owns the character. Only
+        the owner dropdown is the GM's alone: who plays what is a decision about
+        the table, not about the sheet.
+      */}
+      {editable && (
         <div className="settings">
-          <label>
-            Owner
-            <select
-              value={combatant.ownerId ?? ""}
-              onChange={(event) =>
-                dispatch({
-                  type: "combatant/ownerChanged",
-                  combatantId: combatant.id,
-                  ownerId: event.target.value === "" ? undefined : event.target.value,
-                })
-              }
-            >
-              <option value="">Unassigned (GM)</option>
-              {session.party.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                </option>
-              ))}
-              {combatant.ownerId !== undefined &&
-                !session.party.some((member) => member.id === combatant.ownerId) && (
-                  <option value={combatant.ownerId}>Absent player</option>
-                )}
-            </select>
-          </label>
+          {isGm && (
+            <label className="settings-wide">
+              Owner
+              <select
+                value={combatant.ownerId ?? ""}
+                onChange={(event) =>
+                  dispatch({
+                    type: "combatant/ownerChanged",
+                    combatantId: combatant.id,
+                    ownerId: event.target.value === "" ? undefined : event.target.value,
+                  })
+                }
+              >
+                <option value="">Unassigned (GM)</option>
+                {session.party.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+                {combatant.ownerId !== undefined &&
+                  !session.party.some((member) => member.id === combatant.ownerId) && (
+                    <option value={combatant.ownerId}>Absent player</option>
+                  )}
+              </select>
+            </label>
+          )}
 
           <label>
             Init. bonus
@@ -239,22 +246,61 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
           </label>
 
           {selected && (
-            <label>
-              {selected.name} armor
-              <input
-                type="number"
-                min={0}
-                value={selected.armorPoints}
-                onChange={(event) =>
-                  dispatch({
-                    type: "location/armorChanged",
-                    combatantId: combatant.id,
-                    locationId: selected.id,
-                    armorPoints: Number(event.target.value),
-                  })
-                }
-              />
-            </label>
+            <div className="settings-location">
+              <span className="settings-caption">{selected.name}</span>
+
+              {/* Not floored at zero: below it is where Serious and Major wounds live. */}
+              <label>
+                HP
+                <input
+                  type="number"
+                  max={selected.maxHitPoints}
+                  value={selected.hitPoints}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "location/hitPointsChanged",
+                      combatantId: combatant.id,
+                      locationId: selected.id,
+                      hitPoints: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+
+              <label>
+                Max HP
+                <input
+                  type="number"
+                  min={1}
+                  value={selected.maxHitPoints}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "location/maxHitPointsChanged",
+                      combatantId: combatant.id,
+                      locationId: selected.id,
+                      maxHitPoints: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+
+              <label>
+                Armor
+                <input
+                  type="number"
+                  min={0}
+                  value={selected.armorPoints}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "location/armorChanged",
+                      combatantId: combatant.id,
+                      locationId: selected.id,
+                      armorPoints: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+            </div>
           )}
         </div>
       )}
