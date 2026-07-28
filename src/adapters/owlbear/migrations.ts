@@ -12,8 +12,42 @@ import { createEmptyState, SCHEMA_VERSION, type CombatState } from "../../core/t
 type Migration = (state: Record<string, unknown>) => Record<string, unknown>;
 
 const MIGRATIONS: Record<number, Migration> = {
-  // The shape the first real migration will take:
-  // 1: (state) => ({ ...state, newField: defaultValue, schemaVersion: 2 }),
+  /**
+   * 1 → 2: `activeInitiative` becomes `activeTurn`.
+   *
+   * Version 1 recorded only the initiative value holding the turn and worked out
+   * who was taking it on every read, which lit up tied combatants who had no
+   * Action Points and were about to be skipped. Version 2 records the turn's
+   * membership when it opens.
+   *
+   * Reconstructing that membership for a fight already in progress is a guess,
+   * so this takes the conservative one: everyone on that initiative who can
+   * still act. A GM mid-combat sees the marker settle onto the right people from
+   * the next turn onward rather than losing the fight.
+   */
+  1: (state) => {
+    const initiative = state["activeInitiative"];
+    const combatants = Array.isArray(state["combatants"]) ? state["combatants"] : [];
+    const { activeInitiative: _replaced, ...rest } = state;
+
+    const activeTurn =
+      typeof initiative === "number"
+        ? {
+            initiative,
+            combatantIds: combatants
+              .filter(
+                (combatant: Record<string, unknown>) =>
+                  combatant["initiative"] === initiative &&
+                  combatant["defeated"] !== true &&
+                  typeof combatant["actionPoints"] === "number" &&
+                  combatant["actionPoints"] > 0,
+              )
+              .map((combatant: Record<string, unknown>) => combatant["id"]),
+          }
+        : null;
+
+    return { ...rest, activeTurn, schemaVersion: 2 };
+  },
 };
 
 /**
