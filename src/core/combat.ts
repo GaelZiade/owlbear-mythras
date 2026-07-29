@@ -1,4 +1,5 @@
 import { applyDamage, applyHealing, type DamageOptions } from "./wounds";
+import { fatigueRow, type FatigueLevel } from "./fatigue";
 import { SCHEMA_VERSION, type ActiveTurn, type Combatant, type CombatState } from "./types";
 
 /**
@@ -38,6 +39,7 @@ export type CombatEvent =
   | { type: "combatant/actionPointsMaxChanged"; combatantId: string; maxActionPoints: number }
   | { type: "combatant/ownerChanged"; combatantId: string; ownerId: string | undefined }
   | { type: "combatant/defeatedToggled"; combatantId: string }
+  | { type: "combatant/fatigueChanged"; combatantId: string; fatigue: FatigueLevel }
   | { type: "actionPoints/changed"; combatantId: string; delta: number }
   | {
       type: "location/damaged";
@@ -62,6 +64,32 @@ export type CombatEvent =
     };
 
 /**
+ * Maximum Action Points after Fatigue.
+ *
+ * Fatigue is applied here rather than written into `maxActionPoints` so the
+ * sheet value survives. A character who recovers has to get their full total
+ * back, and that is only possible if the penalty was never stored.
+ *
+ * Floored at zero: Incapacitated costs 3 Action Points, which is more than many
+ * combatants have, and a negative maximum has no meaning.
+ */
+export function effectiveMaxActionPoints(combatant: Combatant): number {
+  const { actionPointsModifier } = fatigueRow(combatant.fatigue);
+  return Math.max(0, combatant.maxActionPoints + actionPointsModifier);
+}
+
+/**
+ * Initiative after Fatigue.
+ *
+ * Allowed to go negative. The penalties reach -8, which will outrun a low roll,
+ * and clamping at zero would silently bunch the worst-off combatants together
+ * at the bottom of the order instead of ranking them.
+ */
+export function effectiveInitiative(combatant: Combatant): number {
+  return combatant.initiative + fatigueRow(combatant.fatigue).initiativeModifier;
+}
+
+/**
  * Whether a combatant can still take a Turn.
  *
  * Anyone out of Action Points is skipped outright, including in the first Cycle.
@@ -71,14 +99,20 @@ export type CombatEvent =
  * comes and she is unable to do anything". Stopping the tracker on someone who
  * has no move to make is friction at the table, so we skip them. Their Action
  * Points still come back at the end of the Round, so nothing is lost.
+ *
+ * From Semi-Conscious down the Fatigue table stops handing out penalties and
+ * says no activity is possible at all, so those levels drop out here regardless
+ * of how many Action Points are on the sheet.
  */
 export function canAct(combatant: Combatant): boolean {
-  return !combatant.defeated && combatant.actionPoints > 0;
+  if (combatant.defeated) return false;
+  if (!fatigueRow(combatant.fatigue).canAct) return false;
+  return Math.min(combatant.actionPoints, effectiveMaxActionPoints(combatant)) > 0;
 }
 
 /** Initiative values that still have someone able to act, highest first. */
 function initiativeOrder(state: CombatState): number[] {
-  const values = state.combatants.filter(canAct).map((combatant) => combatant.initiative);
+  const values = state.combatants.filter(canAct).map(effectiveInitiative);
   return [...new Set(values)].sort((a, b) => b - a);
 }
 
@@ -93,7 +127,7 @@ function beginTurn(state: CombatState, initiative: number): ActiveTurn {
   return {
     initiative,
     combatantIds: state.combatants
-      .filter((combatant) => combatant.initiative === initiative && canAct(combatant))
+      .filter((combatant) => effectiveInitiative(combatant) === initiative && canAct(combatant))
       .map(({ id }) => id),
   };
 }
@@ -123,17 +157,17 @@ export function turnStatus(state: CombatState, combatant: Combatant): TurnStatus
   if (state.status !== "active" || !turn) return "pending";
   if (turn.combatantIds.includes(combatant.id)) return "active";
   if (!canAct(combatant)) return "out";
-  return combatant.initiative > turn.initiative ? "acted" : "pending";
+  return effectiveInitiative(combatant) > turn.initiative ? "acted" : "pending";
 }
 
 export function orderedCombatants(state: CombatState): Combatant[] {
-  return [...state.combatants].sort((a, b) => b.initiative - a.initiative);
+  return [...state.combatants].sort((a, b) => effectiveInitiative(b) - effectiveInitiative(a));
 }
 
 function refreshActionPoints(combatants: Combatant[]): Combatant[] {
   return combatants.map((combatant) => ({
     ...combatant,
-    actionPoints: combatant.maxActionPoints,
+    actionPoints: effectiveMaxActionPoints(combatant),
   }));
 }
 
@@ -258,11 +292,10 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
 
     case "combatant/actionPointsMaxChanged":
       return updateCombatant(state, event.combatantId, (combatant) => {
-        const maxActionPoints = Math.max(0, event.maxActionPoints);
+        const raised = { ...combatant, maxActionPoints: Math.max(0, event.maxActionPoints) };
         return {
-          ...combatant,
-          maxActionPoints,
-          actionPoints: Math.min(combatant.actionPoints, maxActionPoints),
+          ...raised,
+          actionPoints: Math.min(raised.actionPoints, effectiveMaxActionPoints(raised)),
         };
       });
 
@@ -278,12 +311,27 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
         defeated: !combatant.defeated,
       }));
 
+    /**
+     * Worsening Fatigue can put a combatant over their new ceiling, so current
+     * Action Points come down with it. Recovering does *not* hand points back:
+     * the ceiling rises, but points are only restored at the end of a Round,
+     * and refilling mid-Cycle would be a free action out of nowhere.
+     */
+    case "combatant/fatigueChanged":
+      return updateCombatant(state, event.combatantId, (combatant) => {
+        const fatigued = { ...combatant, fatigue: event.fatigue };
+        return {
+          ...fatigued,
+          actionPoints: Math.min(fatigued.actionPoints, effectiveMaxActionPoints(fatigued)),
+        };
+      });
+
     case "actionPoints/changed":
       return updateCombatant(state, event.combatantId, (combatant) => ({
         ...combatant,
         actionPoints: Math.max(
           0,
-          Math.min(combatant.maxActionPoints, combatant.actionPoints + event.delta),
+          Math.min(effectiveMaxActionPoints(combatant), combatant.actionPoints + event.delta),
         ),
       }));
 

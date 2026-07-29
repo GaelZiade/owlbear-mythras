@@ -1,8 +1,9 @@
 import { useState } from "react";
 
 import { dispatch, type Session } from "../adapters/owlbear/store";
-import type { TurnStatus } from "../core/combat";
+import { effectiveMaxActionPoints, type TurnStatus } from "../core/combat";
 import { rollInitiative } from "../core/dice";
+import { fatigueRow } from "../core/fatigue";
 import type { Combatant, WoundLevel } from "../core/types";
 import { worstWound } from "../core/wounds";
 import { CombatantDetail } from "./CombatantDetail";
@@ -53,6 +54,8 @@ export function CombatantRow({ combatant, session, status }: Props) {
   const editable = canEdit(session, combatant);
   const isGm = session.role === "GM";
   const wound = worstWound(combatant.locations);
+  const fatigue = fatigueRow(combatant.fatigue);
+  const maxActionPoints = effectiveMaxActionPoints(combatant);
 
   const changeActionPoints = (delta: number) =>
     dispatch({ type: "actionPoints/changed", combatantId: combatant.id, delta });
@@ -93,6 +96,17 @@ export function CombatantRow({ combatant, session, status }: Props) {
           {wound !== "unharmed" && (
             <span className={`wound wound-${wound}`}>{WOUND_LABEL[wound]}</span>
           )}
+          {/*
+            The initiative field keeps showing what was rolled, because that is
+            the number the GM typed and can edit. The badge carries the penalty,
+            which is what explains a 12 sitting below a 10 in the order.
+          */}
+          {fatigue.level !== "fresh" && (
+            <span className={`fatigue fatigue-${fatigue.level}`}>
+              {fatigue.name}
+              {fatigue.initiativeModifier !== 0 && ` ${fatigue.initiativeModifier}`}
+            </span>
+          )}
         </span>
 
         <span className="action-points">
@@ -105,11 +119,13 @@ export function CombatantRow({ combatant, session, status }: Props) {
           >
             −
           </button>
-          <ActionPoints current={combatant.actionPoints} max={combatant.maxActionPoints} />
+          {/* The fatigued ceiling, not the sheet's: the reducer clamps to it, so
+              showing the sheet total would leave a "+" that does nothing. */}
+          <ActionPoints current={combatant.actionPoints} max={maxActionPoints} />
           <button
             type="button"
             className="ghost step"
-            disabled={!editable || combatant.actionPoints >= combatant.maxActionPoints}
+            disabled={!editable || combatant.actionPoints >= maxActionPoints}
             aria-label={`Give back an Action Point to ${combatant.name}`}
             onClick={() => changeActionPoints(+1)}
           >

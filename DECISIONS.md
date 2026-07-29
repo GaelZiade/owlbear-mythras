@@ -78,6 +78,41 @@ a **data-driven profile**, never `type HitLocation = 'head' | 'chest' | …`.
 Mythras abbreviates both Action Points and Armor Points as AP. **Rule: never
 abbreviate.** `actionPoints` and `armorPoints`, always.
 
+### 1.8 Fatigue is applied, not stored
+
+The Fatigue table has five columns. Only two of them touch numbers this tracker
+models, and they are the only two the engine applies:
+
+| Column | Status |
+| --- | --- |
+| Momento de Reacción / Initiative | **Applied** — `effectiveInitiative` |
+| Puntos de Acción / Action Points | **Applied** — `effectiveMaxActionPoints` |
+| Grado de Dificultad | Shown only — there are no skills to grade |
+| Movimiento | Shown only — there is no map distance in the state |
+| Período de Recuperación | Shown only — measured in hours, and a Round-based tracker has no clock |
+
+The three unenforced columns are still carried as data on every level and printed
+in the panel. Dropping them would quietly lose three fifths of a rule the GM is
+still expected to apply; printing them next to the two that *are* automatic, with
+the manual half visibly dimmed, keeps the split honest.
+
+Penalties are **derived at read time, never written into the combatant**. Storing
+a reduced `maxActionPoints` would destroy the sheet value, and recovery has to
+give the full total back. The same reasoning as §1.6: the rule is data applied to
+the model, not a mutation of it.
+
+Two consequences worth naming:
+
+- From Semi-Conscious down the table stops giving penalties and says no activity
+  is possible, so those levels are a `canAct` flag rather than a large modifier.
+- A combatant who becomes unable to act *during* their own turn keeps the marker
+  until the GM advances, exactly as one who spends their last Action Point does
+  (§1.1). Dropping them mid-turn reads as "it was never your turn", which is
+  wrong in both cases.
+
+`fatigue` is optional on `Combatant` and absent means Fresh, so a fight saved by
+an earlier build still loads and the schema version stays where it is.
+
 ---
 
 ## 2. Functional decisions (made by the project owner)
@@ -232,3 +267,13 @@ import would require rewriting the model rather than adding a parser.
 4. **Side initiative**, a common optional rule. Not decided.
 5. **Inherited advisory**: `@owlbear-rodeo/sdk@3.1.0` depends on a `uuid` version
    with a moderate advisory. No fix available and it does not affect our usage.
+6. **Licensing of the Fatigue table** (§1.8). The header of this document cites
+   *Mythras Imperative* (ORC) alongside the core rules, and it is not confirmed
+   that Fatigue appears in Imperative. If the table is core-only, reproducing its
+   values needs checking against T6 before release. The level names and the two
+   applied columns sit in `fatigue.ts` and would be the thing to revisit; nothing
+   else in the codebase depends on those numbers.
+7. **Automatic Fatigue accrual.** The engine never raises a level on its own —
+   forced marches, swimming and holding your breath are all outside a combat
+   tracker's knowledge. `worsenFatigue` and `recoverFatigue` exist for a future
+   caller; today the level is always set by hand.

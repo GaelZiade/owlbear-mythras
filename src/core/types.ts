@@ -8,6 +8,8 @@
  * AP. This codebase never abbreviates either one.
  */
 
+import type { FatigueLevel } from "./fatigue";
+
 /** Version of the persisted state. Changing the model means bumping this and adding a migration. */
 export const SCHEMA_VERSION = 2;
 
@@ -60,6 +62,14 @@ export interface Combatant {
   initiativeBonus: number;
   actionPoints: number;
   maxActionPoints: number;
+  /**
+   * Fatigue level, absent meaning Fresh.
+   *
+   * Optional rather than required so a fight saved by an earlier build still
+   * loads: every combatant without the field reads as unfatigued, which is what
+   * it was. That keeps the schema version where it is.
+   */
+  fatigue?: FatigueLevel;
   locations: HitLocation[];
   /**
    * Toggled by hand, never derived from Hit Points.

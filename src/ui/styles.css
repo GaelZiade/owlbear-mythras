@@ -678,6 +678,86 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text-dim);
 }
 
+/* ---------- fatigue ---------- */
+
+/*
+ * The row badge reuses the wound scale rather than inventing a second one:
+ * both answer "how bad is this combatant", and two competing colour languages
+ * in one row is harder to read than one shared with more steps.
+ */
+.fatigue {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.fatigue-wearied,
+.fatigue-exhausted {
+  color: var(--minor);
+}
+.fatigue-debilitated,
+.fatigue-incapacitated {
+  color: var(--serious);
+}
+.fatigue-semi-conscious,
+.fatigue-comatose,
+.fatigue-dead {
+  color: var(--major);
+}
+
+.fatigue-effects {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.fatigue-effects dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 4px 8px;
+}
+
+.fatigue-effects dt {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-off);
+}
+
+.fatigue-effects dd {
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Applied by the engine; the manual half is dimmed so the split is visible. */
+.fatigue-applied dd {
+  color: var(--text);
+}
+
+.fatigue-manual dd {
+  color: var(--text-dim);
+}
+
+.fatigue-halt {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--major);
+}
+
+.fatigue-note {
+  margin: 0;
+  font-size: 10px;
+  color: var(--text-off);
+}
+
 /* ---------- footer ---------- */
 
 .footer {

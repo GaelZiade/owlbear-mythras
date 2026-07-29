@@ -43,6 +43,13 @@ const PLAYER_EDITABLE_EVENTS = new Set<CombatEvent["type"]>([
   "combatant/initiativeChanged",
   "combatant/initiativeBonusChanged",
   "combatant/actionPointsMaxChanged",
+  /**
+   * Fatigue sits on the character side of the line, next to Hit Points: it is a
+   * condition the sheet carries between fights, not a decision about the
+   * encounter. A GM ruling that a forced march cost two levels still applies it
+   * themselves — the GM may edit anyone.
+   */
+  "combatant/fatigueChanged",
 ]);
 
 /**

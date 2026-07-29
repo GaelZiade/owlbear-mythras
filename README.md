@@ -22,11 +22,16 @@ initiative by Cycles, Action Points, and wounds by hit location.
 - **Damage preview** before you commit: how many points would remain, what wound
   it would cause, and how much the armor absorbed.
 - **Out of the fight** toggle that skips a combatant in the initiative order.
+- **Fatigue** across the table's ten levels. The Initiative and Action Point
+  penalties are applied to the order and the pips automatically; the difficulty
+  grade, movement and recovery period are shown for you to apply, because a
+  combat tracker has no skills, no distances and no clock. From Semi-Conscious
+  down, the combatant is skipped entirely.
 - **Undo**, sitting next to Next turn — which is the button people misclick.
 - Each player edits their own combatant: Hit Points and Armor Points per
-  location, Action Points, Initiative and Initiative Bonus. The GM controls
-  everything, and everything about the fight itself — starting it, advancing the
-  turn, who is in it — stays with the GM alone.
+  location, Action Points, Initiative, Initiative Bonus and Fatigue. The GM
+  controls everything, and everything about the fight itself — starting it,
+  advancing the turn, who is in it — stays with the GM alone.
 
 ## Development
 

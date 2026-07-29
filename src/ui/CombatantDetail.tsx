@@ -1,9 +1,19 @@
 import { useState } from "react";
 
 import { dispatch, type Session } from "../adapters/owlbear/store";
+import { effectiveInitiative, effectiveMaxActionPoints } from "../core/combat";
+import { FATIGUE_TABLE, fatigueRow, type FatigueLevel } from "../core/fatigue";
 import type { Combatant, HitLocation, WoundLevel } from "../core/types";
 import { applyHealing, previewDamage, woundLevel } from "../core/wounds";
 import { BodyDiagram } from "./BodyDiagram";
+
+const DIFFICULTY_LABEL: Record<string, string> = {
+  none: "—",
+  hard: "Hard",
+  formidable: "Formidable",
+  herculean: "Herculean",
+  impossible: "Impossible",
+};
 
 const WOUND_LABEL: Record<WoundLevel, string> = {
   unharmed: "Unharmed",
@@ -60,6 +70,7 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
   const [ignoreArmor, setIgnoreArmor] = useState(false);
 
   const isGm = session.role === "GM";
+  const fatigue = fatigueRow(combatant.fatigue);
   const selected = combatant.locations.find(({ id }) => id === selectedId) ?? null;
   const outcome = selected ? outcomeFor(selected, mode, amount, ignoreArmor) : null;
 
@@ -244,6 +255,84 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
               }
             />
           </label>
+
+          <label className="settings-wide">
+            Fatigue
+            <select
+              value={fatigue.level}
+              onChange={(event) =>
+                dispatch({
+                  type: "combatant/fatigueChanged",
+                  combatantId: combatant.id,
+                  fatigue: event.target.value as FatigueLevel,
+                })
+              }
+            >
+              {FATIGUE_TABLE.map((row) => (
+                <option key={row.level} value={row.level}>
+                  {row.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/*
+            The table's five columns, split by what this tracker can enforce.
+            Initiative and Action Points are applied to the numbers above; the
+            other three are shown because a GM needs them at the table, and a
+            penalty the tracker silently forgets is worse than one it prints.
+          */}
+          {fatigue.level !== "fresh" && (
+            <div className="fatigue-effects">
+              <span className="settings-caption">{fatigue.name}</span>
+
+              {/*
+                Past Incapacitated the table stops printing penalties, so both
+                numbers read as zero. Showing "No penalty" there would say the
+                combatant is fine; the dash defers to the halt line below.
+              */}
+              <dl className="fatigue-applied">
+                <div>
+                  <dt>Initiative</dt>
+                  <dd>
+                    {!fatigue.canAct
+                      ? "—"
+                      : fatigue.initiativeModifier === 0
+                        ? "No penalty"
+                        : `${fatigue.initiativeModifier} → ${effectiveInitiative(combatant)}`}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Action Points</dt>
+                  <dd>
+                    {!fatigue.canAct
+                      ? "—"
+                      : fatigue.actionPointsModifier === 0
+                        ? "No penalty"
+                        : `${fatigue.actionPointsModifier} → ${effectiveMaxActionPoints(combatant)} max`}
+                  </dd>
+                </div>
+              </dl>
+
+              {!fatigue.canAct && <p className="fatigue-halt">No activity possible</p>}
+
+              <dl className="fatigue-manual">
+                <div>
+                  <dt>Skills</dt>
+                  <dd>{DIFFICULTY_LABEL[fatigue.difficulty] ?? fatigue.difficulty}</dd>
+                </div>
+                <div>
+                  <dt>Movement</dt>
+                  <dd>{fatigue.movement}</dd>
+                </div>
+                <div>
+                  <dt>Recovery</dt>
+                  <dd>{fatigue.recovery ?? "Never"}</dd>
+                </div>
+              </dl>
+              <p className="fatigue-note">Skills, movement and recovery are yours to apply.</p>
+            </div>
+          )}
 
           {selected && (
             <div className="settings-location">
