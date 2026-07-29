@@ -543,12 +543,26 @@ input[type="number"]::-webkit-inner-spin-button {
 
 /* ---------- damage ---------- */
 
+/*
+ * A panel section like the settings block below it, rather than a loose stack
+ * under a rule. Both are groups of controls acting on the combatant, and giving
+ * them the same treatment is what stops the lower half of the panel reading as
+ * small print appended to the statblock.
+ */
 .damage {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--line);
+  gap: 7px;
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: var(--r);
+  background: var(--surface);
+  transition: opacity 120ms ease;
+}
+
+/* Dimmed until a location is picked: nothing here can be applied without one. */
+.damage-idle {
+  opacity: 0.72;
 }
 
 .segment {
@@ -571,30 +585,56 @@ input[type="number"]::-webkit-inner-spin-button {
   font-weight: 600;
 }
 
-.damage-input {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.segment button:hover:not(.on) {
+  color: var(--text);
 }
 
-.damage-input input[type="number"] {
-  width: 58px;
+.damage-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.amount {
   flex: 0 0 auto;
-  text-align: center;
-  font-weight: 600;
 }
 
-.check {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-dim);
+.amount input[type="number"] {
+  width: 46px;
+  text-align: center;
+  font-weight: 650;
+  font-size: 14px;
+}
+
+/*
+ * A pressed-state chip, not a checkbox. It is the mode the next application is
+ * in, and it has to be legible from across the panel while the reader is
+ * looking at the preview rather than at the control.
+ */
+.chip {
+  flex: 1 1 auto;
+  padding: 5px 8px;
   font-size: 11px;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--line);
   white-space: nowrap;
 }
 
-.check input {
-  width: auto;
+.chip:hover {
+  color: var(--text);
+}
+
+/*
+ * Accent, not the wound red. Ignoring armour is a rule the GM is invoking —
+ * impaling through a gap, a poison — not a mistake, and a red border read as
+ * an error state on a control that is working correctly.
+ */
+.chip.on {
+  background: color-mix(in srgb, var(--accent) 20%, var(--bg));
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .preview {
@@ -854,6 +894,91 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .meg-error {
   color: var(--serious);
+}
+
+/* ---------- characteristics ---------- */
+
+.chars {
+  display: grid;
+  gap: 6px;
+}
+
+/*
+ * Collapsed to a single line showing the seven values. They are entered once
+ * and then rarely touched, so open they would crowd out the numbers that change
+ * every Round; closed, the summary still answers "are these set?".
+ */
+.chars-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 7px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.chars-toggle:hover {
+  color: var(--text);
+}
+
+.chars-toggle .dim {
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chars-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+.chars-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-off);
+}
+
+.chars-grid input {
+  text-align: center;
+  font-weight: 600;
+}
+
+.chars-derived {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 4px 8px;
+  padding: 6px 8px;
+  border-radius: var(--r);
+  background: var(--bg);
+}
+
+.chars-derived dt {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-off);
+}
+
+.chars-derived dd {
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chars-note {
+  margin: 0;
+  font-size: 10px;
+  color: var(--text-off);
 }
 
 /* ---------- notices ---------- */

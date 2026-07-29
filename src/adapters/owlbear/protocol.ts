@@ -50,6 +50,12 @@ const PLAYER_EDITABLE_EVENTS = new Set<CombatEvent["type"]>([
    * themselves — the GM may edit anyone.
    */
   "combatant/fatigueChanged",
+  /**
+   * Characteristics are the sheet itself — the numbers a player rolls or buys
+   * at creation and the Attributes come from. Nothing sits further inside the
+   * character side of the line.
+   */
+  "combatant/characteristicsChanged",
 ]);
 
 /**

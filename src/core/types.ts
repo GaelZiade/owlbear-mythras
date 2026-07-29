@@ -8,6 +8,7 @@
  * AP. This codebase never abbreviates either one.
  */
 
+import type { Characteristics } from "./characteristics";
 import type { FatigueLevel } from "./fatigue";
 
 /** Version of the persisted state. Changing the model means bumping this and adding a migration. */
@@ -79,6 +80,16 @@ export interface Combatant {
    * cannot model.
    */
   notes?: string;
+  /**
+   * The seven Characteristics, absent when nobody entered them.
+   *
+   * Optional because most combatants never need them: a creature imported from
+   * MEG arrives with its Attributes already final, and re-deriving them here
+   * would disagree with the statblock (DECISIONS §5). They are stored for
+   * characters built in the panel, where they are the input the Attributes come
+   * from, and so that a corrected SIZ can recompute what depends on it.
+   */
+  characteristics?: Characteristics;
   locations: HitLocation[];
   /**
    * Toggled by hand, never derived from Hit Points.

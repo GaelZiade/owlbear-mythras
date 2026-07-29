@@ -55,6 +55,23 @@ the owner's turn. Spending is independent of the turn pointer.
 Both verified against the book's Anathaym example (INT 14 + DEX 16 = 30 → 3 AP;
 CON 13 + SIZ 10 = 23 → 5 head/legs, 7 chest, 6 abdomen, 4 arms). Exact match.
 
+### 1.4b Imperative and the core rules disagree about Action Points
+
+The table above is the **core** rule: Action Points band on INT + DEX. *Mythras
+Imperativo* says something else outright — *"Todos los personajes en Mythras
+Imperativo tienen 2 Puntos de Acción."* A flat 2, for everybody, derived from
+nothing.
+
+Both are kept. `tables.ts` holds the core banding, `characteristics.ts` holds
+Imperative's flat 2, and **Imperative wins where the panel derives anything**,
+because Imperative is the source this project can reproduce under ORC. A
+combatant whose Characteristics are entered in the panel therefore ends up with
+2 Action Points however high their INT and DEX are.
+
+Nothing re-derives an imported creature: MEG's Attributes are already final and
+include natural armour, racial modifiers and features these tables know nothing
+about (§5).
+
 ### 1.5 Wound levels are derived
 
 | Level | Condition |
@@ -112,6 +129,33 @@ Two consequences worth naming:
 
 `fatigue` is optional on `Combatant` and absent means Fresh, so a fight saved by
 an earlier build still loads and the schema version stays where it is.
+
+### 1.9 Skill rolls
+
+Source: Imperative, *Habilidades*. The rules resolve in a fixed order, and the
+order is the whole of it:
+
+1. **Fumble** on 99 or 00 — but a target over 100 fumbles only on 00.
+2. **96-00 always fails**, however high the skill.
+3. **01-05 always succeeds**, however low.
+4. Otherwise, at or under the target succeeds.
+5. A **critical** is a tenth of the *modified* target, rounded up, checked
+   within a success.
+
+Rule 1 before rule 2 is the one worth stating: a 99 satisfies both, and fumble
+is the more specific answer. The suite sweeps all 100 rolls at six skill values
+rather than sampling, which is what pinned that down.
+
+The Difficulty Grade table has **two modifier methods** and the book insists a
+table pick one and keep it: multiply the skill, or add a flat percentage. They
+agree around 60 and diverge sharply at high values — 120 at Formidable is 60 one
+way and 80 the other — so `ModifierMethod` is a parameter rather than a choice
+made here.
+
+Where several grades apply, the hardest wins. That is what connects Fatigue to
+this: the difficulty column of §1.8 was carried as data with nothing consuming
+it, and `hardestGrade` is now that consumer. An Exhausted character attempting
+something Hard rolls Formidable.
 
 ---
 
@@ -306,12 +350,13 @@ they are not negotiable by the MEG author either.
 4. **Side initiative**, a common optional rule. Not decided.
 5. **Inherited advisory**: `@owlbear-rodeo/sdk@3.1.0` depends on a `uuid` version
    with a moderate advisory. No fix available and it does not affect our usage.
-6. **Licensing of the Fatigue table** (§1.8). The header of this document cites
-   *Mythras Imperative* (ORC) alongside the core rules, and it is not confirmed
-   that Fatigue appears in Imperative. If the table is core-only, reproducing its
-   values needs checking against T6 before release. The level names and the two
-   applied columns sit in `fatigue.ts` and would be the thing to revisit; nothing
-   else in the codebase depends on those numbers.
+6. **Licensing of the Fatigue table** (§1.8). Partly narrowed: Imperative is
+   confirmed to carry the Characteristics, derived Attributes and skill roll
+   rules now implemented, so those are safely ORC. The Fatigue table itself was
+   not found in Imperative and remains the open part. If the table is core-only,
+   reproducing its values needs checking against T6 before release. The level
+   names and the two applied columns sit in `fatigue.ts` and would be the thing
+   to revisit; nothing else in the codebase depends on those numbers.
 7. **Automatic Fatigue accrual.** The engine never raises a level on its own —
    forced marches, swimming and holding your breath are all outside a combat
    tracker's knowledge. `worsenFatigue` and `recoverFatigue` exist for a future

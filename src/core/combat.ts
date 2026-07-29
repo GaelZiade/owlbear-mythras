@@ -1,5 +1,7 @@
 import { applyDamage, applyHealing, type DamageOptions } from "./wounds";
+import { deriveAttributes, type Characteristics } from "./characteristics";
 import { fatigueRow, type FatigueLevel } from "./fatigue";
+import { hitPointsFor, type BodyPart } from "./tables";
 import { SCHEMA_VERSION, type ActiveTurn, type Combatant, type CombatState } from "./types";
 
 /**
@@ -40,6 +42,11 @@ export type CombatEvent =
   | { type: "combatant/ownerChanged"; combatantId: string; ownerId: string | undefined }
   | { type: "combatant/defeatedToggled"; combatantId: string }
   | { type: "combatant/fatigueChanged"; combatantId: string; fatigue: FatigueLevel }
+  | {
+      type: "combatant/characteristicsChanged";
+      combatantId: string;
+      characteristics: Characteristics;
+    }
   | { type: "actionPoints/changed"; combatantId: string; delta: number }
   | {
       type: "location/damaged";
@@ -210,6 +217,24 @@ function advanceTurn(state: CombatState): CombatState {
   return { ...state, cycle: state.cycle + 1, activeTurn: beginTurn(state, order[0]!) };
 }
 
+/**
+ * Which row of the Hit Points table a location reads from, or `null`.
+ *
+ * Matched on the name rather than declared, because locations are data and
+ * arrive from anywhere — the panel's own humanoid profile, or MEG, where the
+ * same part is called "Right leg" rather than "Right Leg". Anything unrecognised
+ * returns null and keeps whatever Hit Points it already had.
+ */
+function bodyPartFor(id: string, name: string): BodyPart | null {
+  const text = `${id} ${name}`.toLowerCase();
+  if (text.includes("head")) return "head";
+  if (text.includes("chest")) return "chest";
+  if (text.includes("abdomen")) return "abdomen";
+  if (text.includes("arm")) return "arm";
+  if (text.includes("leg")) return "leg";
+  return null;
+}
+
 function updateCombatant(
   state: CombatState,
   combatantId: string,
@@ -323,6 +348,43 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
         return {
           ...fatigued,
           actionPoints: Math.min(fatigued.actionPoints, effectiveMaxActionPoints(fatigued)),
+        };
+      });
+
+    /**
+     * Records the Characteristics and applies what Imperative derives from them.
+     *
+     * Only ever reached from the panel, never from an import: a creature out of
+     * MEG arrives with its Attributes already final and re-deriving them here
+     * would disagree with its own statblock (DECISIONS §5). Combatants from MEG
+     * simply never get Characteristics, so this case never sees them.
+     *
+     * Hit Points are rewritten per location, keeping the damage already taken so
+     * that correcting a mistyped SIZ mid-fight does not heal anybody. Locations
+     * whose name matches no humanoid part are left alone rather than guessed at:
+     * a tail has Hit Points, but not from this table.
+     */
+    case "combatant/characteristicsChanged":
+      return updateCombatant(state, event.combatantId, (combatant) => {
+        const derived = deriveAttributes(event.characteristics);
+        const locations = combatant.locations.map((location) => {
+          const part = bodyPartFor(location.id, location.name);
+          if (!part) return location;
+          const maxHitPoints = hitPointsFor(part, derived.conPlusSiz);
+          const damageTaken = location.maxHitPoints - location.hitPoints;
+          return { ...location, maxHitPoints, hitPoints: maxHitPoints - damageTaken };
+        });
+
+        const updated = {
+          ...combatant,
+          characteristics: event.characteristics,
+          initiativeBonus: derived.initiativeBonus,
+          maxActionPoints: derived.actionPoints,
+          locations,
+        };
+        return {
+          ...updated,
+          actionPoints: Math.min(updated.actionPoints, effectiveMaxActionPoints(updated)),
         };
       });
 

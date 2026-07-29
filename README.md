@@ -24,6 +24,10 @@ initiative by Cycles, Action Points, and wounds by hit location.
 - **Import from the Mythras Enemy Generator**: search the catalogue by name,
   race or tag and roll however many you need. The catalogue is fetched once and
   searched locally, so typing costs the site nothing.
+- **Characteristics and derived Attributes** as Imperative defines them: enter
+  the seven, and the Initiative Bonus, Action Points, Damage Modifier, Magic and
+  Luck Points, Healing Rate, Experience Modifier and Hit Points per location all
+  follow. Damage already taken is kept.
 - **Out of the fight** toggle that skips a combatant in the initiative order.
 - **Fatigue** across the table's ten levels. The Initiative and Action Point
   penalties are applied to the order and the pips automatically; the difficulty
@@ -131,8 +135,10 @@ clients holding different truths.
 2. **Creature import** from the [Mythras Encounter Generator](https://mythras.skoll.xyz/),
    fetched live so the catalogue stays current as people add to it. Feasibility
    and the rules for the integration are in [DECISIONS.md](DECISIONS.md#5-importing-from-the-mythras-encounter-generator-planned-phase-2).
-3. **Rolls** — automatic success, failure, critical and fumble grading with
-   selectable difficulty grades.
+3. **Rolls** — the engine is in `core/rolls.ts` with the full ruleset: selectable
+   difficulty grades under either of the book's two modifier methods, automatic
+   success and failure ranges, criticals off the modified target, and fumbles.
+   The panel to drive it is what remains. *(next)*
 4. **Character sheets.**
 
 Bug reports and ideas are welcome in

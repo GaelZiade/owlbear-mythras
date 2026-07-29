@@ -12,6 +12,7 @@ import {
 import type { Combatant, HitLocation, WoundLevel } from "../core/types";
 import { applyHealing, previewDamage, woundLevel } from "../core/wounds";
 import { BodyDiagram } from "./BodyDiagram";
+import { CharacteristicsPanel } from "./Characteristics";
 
 const DIFFICULTY_LABEL: Record<string, string> = {
   none: "—",
@@ -149,12 +150,19 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
         })}
       </ul>
 
+      {/*
+        Three inputs and an outcome, in the order the decision is actually made:
+        what you are doing, how much, what it will cost, then commit. The amount
+        is stepped rather than typed because damage is nudged far more often than
+        it is entered — a die roll lands once, then armour and effects adjust it.
+      */}
       {editable && (
-        <div className="damage">
+        <div className={`damage${selected ? "" : " damage-idle"}`}>
           <div className="segment" role="group" aria-label="Damage or heal">
             <button
               type="button"
               className={mode === "damage" ? "on" : ""}
+              aria-pressed={mode === "damage"}
               onClick={() => setMode("damage")}
             >
               Damage
@@ -162,29 +170,55 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
             <button
               type="button"
               className={mode === "heal" ? "on" : ""}
+              aria-pressed={mode === "heal"}
               onClick={() => setMode("heal")}
             >
               Heal
             </button>
           </div>
 
-          <div className="damage-input">
-            <input
-              type="number"
-              min={0}
-              value={amount}
-              aria-label="Amount"
-              onChange={(event) => setAmount(Math.max(0, Number(event.target.value)))}
-            />
+          <div className="damage-row">
+            <div className="stepper amount">
+              <button
+                type="button"
+                className="ghost step"
+                disabled={amount === 0}
+                aria-label="One less"
+                onClick={() => setAmount((value) => Math.max(0, value - 1))}
+              >
+                −
+              </button>
+              <input
+                type="number"
+                min={0}
+                value={amount}
+                aria-label="Amount"
+                onChange={(event) => setAmount(Math.max(0, Number(event.target.value)))}
+              />
+              <button
+                type="button"
+                className="ghost step"
+                aria-label="One more"
+                onClick={() => setAmount((value) => value + 1)}
+              >
+                +
+              </button>
+            </div>
+
+            {/*
+              A chip rather than a checkbox: it is a mode the next roll is in,
+              and it needs to be readable at a glance while the GM is looking at
+              the preview rather than at the control.
+            */}
             {mode === "damage" && (
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={ignoreArmor}
-                  onChange={(event) => setIgnoreArmor(event.target.checked)}
-                />
+              <button
+                type="button"
+                className={`chip${ignoreArmor ? " on" : ""}`}
+                aria-pressed={ignoreArmor}
+                onClick={() => setIgnoreArmor((on) => !on)}
+              >
                 Ignore armor
-              </label>
+              </button>
             )}
           </div>
 
@@ -215,6 +249,10 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
       {editable && (
         <div className="settings">
           <span className="settings-caption">Character</span>
+
+          <div className="settings-wide">
+            <CharacteristicsPanel combatant={combatant} />
+          </div>
 
           <label>
             Init. bonus
