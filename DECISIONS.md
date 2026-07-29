@@ -452,6 +452,21 @@ from a missing combatant: only a roster with somebody *else* in it proves this
 one is gone, so a window that renders before the room answers waits instead of
 announcing a loss.
 
+### 5h. The roll window is handed its sheet, not the fight
+
+It used to look the combatant up in the room by id, which meant a window whose
+only job is "roll against a number on this sheet" could not open unless the whole
+encounter loaded first. Fragile, and wrong about what rolling is: you roll a
+character's skill, not the fight's.
+
+The panel now writes a name, a skill list and Fatigue's own difficulty grade to
+`sessionStorage` and opens the window, which reads that and nothing else. Both
+surfaces are the same origin, so it is shared memory; the URL was not an option
+because a full skill list runs to a couple of kilobytes.
+
+The window therefore works whatever the room is doing, which also means it stops
+being a second victim of any persistence problem.
+
 ## 6. Open questions
 
 1. **The real Owlbear metadata size limit.** Not stated in the public docs and

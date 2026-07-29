@@ -1,8 +1,7 @@
 import { useState } from "react";
 
-import { useSession } from "./useSession";
+import { readRollContext } from "../adapters/owlbear/windows";
 
-import { fatigueRow } from "../core/fatigue";
 import {
   DIFFICULTY_TABLE,
   hardestGrade,
@@ -12,7 +11,7 @@ import {
   type ModifierMethod,
   type RollResult,
 } from "../core/rolls";
-import type { Combatant } from "../core/types";
+
 
 /**
  * Rolling a skill, in a window of its own.
@@ -43,9 +42,7 @@ const OUTCOME_LABEL: Record<RollResult["outcome"], string> = {
   fumble: "Fumble",
 };
 
-interface Props {
-  combatantId: string;
-}
+
 
 /**
  * Which of the book's two methods this table uses.
@@ -57,36 +54,17 @@ interface Props {
  */
 const METHOD: ModifierMethod = "multiplier";
 
-export function RollWindow({ combatantId }: Props) {
-  const session = useSession();
+export function RollWindow() {
+  const [context] = useState(readRollContext);
   const [query, setQuery] = useState("");
   const [skillName, setSkillName] = useState<string | null>(null);
   const [grade, setGrade] = useState<DifficultyGrade>("standard");
   const [result, setResult] = useState<RollResult | null>(null);
 
-  if (!session.ready) return <p className="notice">Connecting…</p>;
+  if (!context) return <p className="notice">Nothing to roll. Open this from a combatant.</p>;
 
-  const combatant: Combatant | undefined = session.state.combatants.find(
-    ({ id }) => id === combatantId,
-  );
-
-  /*
-   * An empty roster is not the same as a missing combatant. This window opens as
-   * its own iframe and reads the room for itself, so it can render before the
-   * room has answered — and saying "no longer in the fight" then is both wrong
-   * and alarming. Only a roster that has somebody else in it proves this one is
-   * really gone.
-   */
-  if (!combatant) {
-    return session.state.combatants.length === 0 ? (
-      <p className="notice">Reading the fight…</p>
-    ) : (
-      <p className="notice">That combatant is no longer in the fight.</p>
-    );
-  }
-
-  const skills = combatant.skills ?? [];
-  if (skills.length === 0) return <p className="notice">{combatant.name} has no skills on file.</p>;
+  const skills = context.skills;
+  if (skills.length === 0) return <p className="notice">{context.name} has no skills on file.</p>;
 
   const skill = skills.find(({ name }) => name === skillName) ?? skills[0]!;
 
@@ -95,8 +73,7 @@ export function RollWindow({ combatantId }: Props) {
    * Exhausted character attempting something Hard rolls Formidable whether or
    * not the person clicking remembers that.
    */
-  const fatigue = fatigueRow(combatant.fatigue);
-  const fatigueGrade = fatigue.difficulty === "none" ? null : (fatigue.difficulty as DifficultyGrade);
+  const fatigueGrade = context.fatigueGrade as DifficultyGrade | null;
   const applied = hardestGrade(fatigueGrade ? [grade, fatigueGrade] : [grade]);
   const target = modifiedSkill(skill.value, applied, METHOD);
 
@@ -109,7 +86,7 @@ export function RollWindow({ combatantId }: Props) {
     // own dismiss control, so drawing a second one would be a fake inside a real.
     <div className="roll-window">
       <div>
-        <h2 className="roll-title">{combatant.name}</h2>
+        <h2 className="roll-title">{context.name}</h2>
 
         {/* Sixty skills is too many to scroll past; typing two letters is not. */}
         <input
@@ -163,7 +140,7 @@ export function RollWindow({ combatantId }: Props) {
 
         {applied !== grade && (
           <p className="roll-note">
-            {fatigue.name} makes this {DIFFICULTY_TABLE.find((r) => r.grade === applied)?.name}.
+            {context.fatigueName} makes this {DIFFICULTY_TABLE.find((r) => r.grade === applied)?.name}.
           </p>
         )}
 

@@ -306,7 +306,14 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
             <button
               type="button"
               className="settings-wide roll-open"
-              onClick={() => void openRollWindow(combatant.id, combatant.name)}
+              onClick={() =>
+                void openRollWindow({
+                  name: combatant.name,
+                  skills: combatant.skills ?? [],
+                  fatigueGrade: fatigue.difficulty === "none" ? null : fatigue.difficulty,
+                  fatigueName: fatigue.name,
+                })
+              }
             >
               Roll a skill
               <span className="dim">{combatant.skills!.length}</span>

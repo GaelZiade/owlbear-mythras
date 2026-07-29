@@ -2,7 +2,6 @@ import OBR from "@owlbear-rodeo/sdk";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { connect } from "./adapters/owlbear/store";
 import { RollWindow } from "./ui/RollWindow";
 import "./ui/styles.css";
 
@@ -15,19 +14,18 @@ import "./ui/styles.css";
  * panel can never be wider than the panel, and the panel is a narrow column
  * already carrying a statblock.
  *
- * It connects to the room in its own right, which is what lets it read the
- * combatant it was opened for and stay in step if the sheet changes underneath.
+ * It reads nothing from the room. The panel hands it a name and a skill list
+ * before opening it, because rolling against a number on a sheet has no business
+ * waiting for an encounter to load — and a window that cannot open until the
+ * whole fight does is a window that fails for reasons that are not its own.
  */
 const container = document.getElementById("root");
 if (!container) throw new Error("Falta el contenedor #root");
 
-const combatantId = new URLSearchParams(window.location.search).get("combatant") ?? "";
-
 OBR.onReady(() => {
-  void connect();
   createRoot(container).render(
     <StrictMode>
-      <RollWindow combatantId={combatantId} />
+      <RollWindow />
     </StrictMode>,
   );
 });

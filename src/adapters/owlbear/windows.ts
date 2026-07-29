@@ -1,5 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 
+import type { Skill } from "../../core/types";
+
 /**
  * Opening the roll window.
  *
@@ -7,16 +9,52 @@ import OBR from "@owlbear-rodeo/sdk";
  * the extension's panel, which is the only way to give the skill list room: an
  * overlay rendered inside the panel is still bounded by the panel's width.
  *
- * The combatant travels in the URL because iframes cannot be passed props. The
- * window reads the room itself from there.
+ * The window is handed exactly what it needs — a name and a list of skills — and
+ * reads nothing else. It used to look the combatant up in the room by id, which
+ * meant a window whose only job is "roll against a number on this sheet" could
+ * not open unless the whole fight loaded first. That was both fragile and wrong
+ * about what rolling is: you roll a character's skill, not the encounter's.
+ *
+ * The handoff goes through sessionStorage rather than the URL because a full
+ * skill list runs to a couple of kilobytes and belongs nowhere near a query
+ * string. Both surfaces are the same origin, so it is simply shared memory.
  */
 const ROLL_WINDOW_ID = "rodeo.owlbear.mythras/roll";
 
-export async function openRollWindow(combatantId: string, name: string): Promise<void> {
+const HANDOFF_KEY = "rodeo.owlbear.mythras/roll-context";
+
+export interface RollContext {
+  name: string;
+  skills: Skill[];
+  /** Fatigue's own difficulty grade, so the window need not know about combat. */
+  fatigueGrade: string | null;
+  fatigueName: string;
+}
+
+export function writeRollContext(context: RollContext): void {
+  try {
+    window.sessionStorage.setItem(HANDOFF_KEY, JSON.stringify(context));
+  } catch {
+    // Private browsing. The window will say it has nothing to roll, which is
+    // true and better than a blank page.
+  }
+}
+
+export function readRollContext(): RollContext | null {
+  try {
+    const raw = window.sessionStorage.getItem(HANDOFF_KEY);
+    return raw ? (JSON.parse(raw) as RollContext) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function openRollWindow(context: RollContext): Promise<void> {
+  writeRollContext(context);
+
   // Built against the page's own location so it works under a subpath, which is
   // how GitHub Pages serves this (/owlbear-mythras/).
   const url = new URL("roll.html", window.location.href);
-  url.searchParams.set("combatant", combatantId);
 
   await OBR.modal.open({
     id: ROLL_WINDOW_ID,
@@ -26,5 +64,4 @@ export async function openRollWindow(combatantId: string, name: string): Promise
     width: 420,
     height: 560,
   });
-  void name;
 }
