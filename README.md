@@ -33,9 +33,9 @@ initiative by Cycles, Action Points, and wounds by hit location.
   skill and combat style worked out from its formula.
 - **Link a combatant to a token** so an imported character follows the token its
   player moves, and a redrawn token finds its sheet again.
-- **Roll a skill** in a dialog, against any of the eight difficulty grades, under either of
-  the book's two modifier methods, with criticals, fumbles and the automatic
-  ranges applied. Fatigue raises the grade on its own.
+- **Roll a skill** in a dialog, against any of the eight difficulty grades, with
+  criticals, fumbles and the automatic success and failure ranges applied.
+  Fatigue raises the grade on its own.
 - **Sheets survive leaving the fight.** Remove somebody from the tracker and add
   their token again: Characteristics, armour, owner, wounds and notes come back.
 - **Out of the fight** toggle that skips a combatant in the initiative order.
@@ -145,7 +145,7 @@ clients holding different truths.
 2. **Creature import** from the [Mythras Encounter Generator](https://mythras.skoll.xyz/),
    fetched live so the catalogue stays current as people add to it. Feasibility
    and the rules for the integration are in [DECISIONS.md](DECISIONS.md#5-importing-from-the-mythras-encounter-generator-planned-phase-2).
-3. **Rolls** — done for skills: `core/rolls.ts` plus the panel that drives it.
+3. **Rolls** — done for skills: `core/rolls.ts` plus the dialog that drives it.
    Opposed rolls and combat special effects are not modelled. *(current)*
 4. **Character sheets.**
 
