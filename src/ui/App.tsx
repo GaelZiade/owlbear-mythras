@@ -11,8 +11,9 @@ import { orderedCombatants, turnStatus } from "../core/combat";
 import { rollInitiative } from "../core/dice";
 import type { Combatant } from "../core/types";
 import { CombatantRow } from "./CombatantRow";
-import { AddAll, AddBlank, AddToken, Dice, Info, Play, Search, Stop, Undo } from "./icons";
+import { AddAll, AddBlank, AddToken, Dice, Info, Play, Search, Sheet, Stop, Undo } from "./icons";
 import { MegSearch } from "./MegSearch";
+import { combatantFromSheet, parseSheet } from "../adapters/sheet/parse";
 import { Notices } from "./Notices";
 import { useOwlbearTheme, useSession } from "./useSession";
 
@@ -143,6 +144,40 @@ export function App() {
             >
               <AddBlank />
             </button>
+            {/*
+              A file input rather than a paste box: the builder exports a file,
+              and asking somebody to open it and copy its contents is a step that
+              exists only because the interface could not be bothered.
+            */}
+            <label className="toolbar-file" title="Import a character sheet (.json)">
+              <Sheet />
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  void file.text().then((text) => {
+                    let payload: unknown;
+                    try {
+                      payload = JSON.parse(text);
+                    } catch {
+                      setHint(`${file.name} is not valid JSON.`);
+                      return;
+                    }
+                    const { value, problems } = parseSheet(payload);
+                    if (!value) {
+                      setHint(problems[0] ?? "That file could not be read.");
+                      return;
+                    }
+                    add([combatantFromSheet(value, crypto.randomUUID())], "");
+                    setHint(problems.length > 0 ? problems.join(" ") : null);
+                  });
+                }}
+              />
+            </label>
+
             <button
               type="button"
               title="Import from the Mythras Enemy Generator"

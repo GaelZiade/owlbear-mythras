@@ -338,6 +338,33 @@ they are not negotiable by the MEG author either.
    path and should be the one that always works, with any live fetch as an
    addition rather than the foundation.
 
+## 5b. Importing from the group's sheet builder
+
+A second import path, unrelated to MEG and with no licence question attached:
+the builder is the group's own tool and the file is the player's own character.
+
+The format stores **formulas rather than results** — a skill knows which
+Characteristics it is based on and what bonuses were spent on it — so the
+adapter computes instead of copying. Two things fell out of that:
+
+- **The order of operations is not documented.** *Customs* is INT with `add: 40`
+  and `multiply: 2`. At INT 13, multiplying first gives 66 and adding first gives
+  106, and no starting skill reaches 106. Multiply the base, then add.
+- **`abdoment` is their spelling.** Matched rather than corrected: reading
+  somebody else's format on its own terms is the whole job of an adapter.
+
+The builder ships its own computed Attributes in `currentValues`, which turned
+into the best available check on §1.4 and §1.4b: Damage Modifier, Experience
+Modifier, Healing Rate, Initiative Bonus and Luck Points all agree exactly with
+what `characteristics.ts` derives independently.
+
+Hit Points are taken from the book's table rather than the builder's
+divide-by-five formula. The two agree at human sizes; the table is the rule.
+
+The armour's total ENC becomes the **Initiative modifier**, not a new base —
+which is what §1.3's armour penalty has always been, and the reason the field
+was split in the first place.
+
 ## 6. Open questions
 
 1. **The real Owlbear metadata size limit.** Not stated in the public docs and

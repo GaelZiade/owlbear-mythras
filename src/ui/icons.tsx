@@ -117,6 +117,13 @@ export const Search = (props: IconProps) => (
   </Icon>
 );
 
+export const Sheet = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+    <path d="M14 3v5h4M8.5 13h7M8.5 17h4" />
+  </Icon>
+);
+
 export const Info = (props: IconProps) => (
   <Icon {...props}>
     <circle cx="12" cy="12" r="9" />

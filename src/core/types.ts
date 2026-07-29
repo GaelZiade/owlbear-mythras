@@ -106,6 +106,14 @@ export interface Combatant {
    * from, and so that a corrected SIZ can recompute what depends on it.
    */
   characteristics?: Characteristics;
+  /**
+   * Percentages to roll against, absent when nobody imported a sheet.
+   *
+   * Stored as final numbers rather than as the builder's formulas: the formulas
+   * are that format's business, and re-evaluating them here would mean carrying
+   * a second rules engine that has to agree with `characteristics.ts`.
+   */
+  skills?: Skill[];
   locations: HitLocation[];
   /**
    * Toggled by hand, never derived from Hit Points.
@@ -136,6 +144,16 @@ export interface ActiveTurn {
   combatantIds: string[];
 }
 
+/** A skill or combat style, as a percentage. */
+export interface Skill {
+  name: string;
+  value: number;
+  /** Professional skills are untrained at zero; basic ones always have a value. */
+  professional: boolean;
+  /** Combat styles roll like skills but are worth showing apart. */
+  combatStyle: boolean;
+}
+
 /**
  * A character's durable half, kept when they leave the initiative order.
  *
@@ -152,6 +170,7 @@ export interface StoredCharacter {
   name: string;
   ownerId?: string;
   characteristics?: Characteristics;
+  skills?: Skill[];
   initiativeBonus: number;
   maxActionPoints: number;
   initiativeModifier?: number;

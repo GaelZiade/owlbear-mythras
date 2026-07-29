@@ -18,6 +18,7 @@ import type { Combatant, HitLocation, WoundLevel } from "../core/types";
 import { applyHealing, previewDamage, woundLevel } from "../core/wounds";
 import { BodyDiagram } from "./BodyDiagram";
 import { CharacteristicsPanel } from "./Characteristics";
+import { RollPanel } from "./RollPanel";
 
 const DIFFICULTY_LABEL: Record<string, string> = {
   none: "—",
@@ -283,6 +284,10 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
 
           <div className="settings-wide">
             <CharacteristicsPanel combatant={combatant} />
+          </div>
+
+          <div className="settings-wide">
+            <RollPanel combatant={combatant} />
           </div>
 
           {/*

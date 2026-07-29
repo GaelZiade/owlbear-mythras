@@ -283,6 +283,7 @@ function toStoredCharacter(combatant: Combatant): StoredCharacter {
     locations: combatant.locations,
     ...(combatant.ownerId !== undefined ? { ownerId: combatant.ownerId } : {}),
     ...(combatant.characteristics ? { characteristics: combatant.characteristics } : {}),
+    ...(combatant.skills ? { skills: combatant.skills } : {}),
     ...(combatant.initiativeModifier !== undefined
       ? { initiativeModifier: combatant.initiativeModifier }
       : {}),
@@ -366,6 +367,7 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
           locations: stored.locations,
           ...(stored.ownerId !== undefined ? { ownerId: stored.ownerId } : {}),
           ...(stored.characteristics ? { characteristics: stored.characteristics } : {}),
+          ...(stored.skills ? { skills: stored.skills } : {}),
           ...(stored.initiativeModifier !== undefined
             ? { initiativeModifier: stored.initiativeModifier }
             : {}),

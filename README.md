@@ -28,6 +28,14 @@ initiative by Cycles, Action Points, and wounds by hit location.
   the seven, and the Initiative Bonus, Action Points, Damage Modifier, Magic and
   Luck Points, Healing Rate, Experience Modifier and Hit Points per location all
   follow. Damage already taken is kept.
+- **Import a character sheet** exported from the group's online builder: the
+  seven Characteristics, the armour worn with its Initiative penalty, and every
+  skill and combat style worked out from its formula.
+- **Roll a skill** against any of the eight difficulty grades, under either of
+  the book's two modifier methods, with criticals, fumbles and the automatic
+  ranges applied. Fatigue raises the grade on its own.
+- **Sheets survive leaving the fight.** Remove somebody from the tracker and add
+  their token again: Characteristics, armour, owner, wounds and notes come back.
 - **Out of the fight** toggle that skips a combatant in the initiative order.
 - **Fatigue** across the table's ten levels. The Initiative and Action Point
   penalties are applied to the order and the pips automatically; the difficulty
@@ -135,10 +143,8 @@ clients holding different truths.
 2. **Creature import** from the [Mythras Encounter Generator](https://mythras.skoll.xyz/),
    fetched live so the catalogue stays current as people add to it. Feasibility
    and the rules for the integration are in [DECISIONS.md](DECISIONS.md#5-importing-from-the-mythras-encounter-generator-planned-phase-2).
-3. **Rolls** — the engine is in `core/rolls.ts` with the full ruleset: selectable
-   difficulty grades under either of the book's two modifier methods, automatic
-   success and failure ranges, criticals off the modified target, and fumbles.
-   The panel to drive it is what remains. *(next)*
+3. **Rolls** — done for skills: `core/rolls.ts` plus the panel that drives it.
+   Opposed rolls and combat special effects are not modelled. *(current)*
 4. **Character sheets.**
 
 Bug reports and ideas are welcome in

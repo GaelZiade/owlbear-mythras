@@ -171,6 +171,26 @@ input[type="number"]::-webkit-inner-spin-button {
   gap: 4px;
 }
 
+/* A file input dressed as one of the toolbar buttons. */
+.toolbar-file {
+  height: var(--tap);
+  display: grid;
+  place-items: center;
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.toolbar-file:hover {
+  color: var(--text);
+  background: var(--raise);
+}
+
+.toolbar-file input {
+  display: none;
+}
+
 .toolbar button,
 .state-toggle {
   height: var(--tap);
@@ -1005,6 +1025,100 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
   font-size: 10px;
   color: var(--text-off);
+}
+
+/* ---------- rolls ---------- */
+
+.rolls {
+  display: grid;
+  gap: 6px;
+}
+
+.roll-skill,
+.roll-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-off);
+}
+
+.roll-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.roll-note {
+  margin: 0;
+  font-size: 10px;
+  color: var(--minor);
+}
+
+.roll-target {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/*
+ * The die first and largest: after a roll the only question is what happened,
+ * and the number is the answer everybody at the table looks for.
+ */
+.roll-result {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 8px;
+  align-items: baseline;
+  padding: 6px 8px;
+  border-radius: var(--r);
+  background: var(--bg);
+  border-left: 3px solid var(--text-off);
+}
+
+.roll-die {
+  grid-row: 1 / span 3;
+  font-size: 26px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+
+.roll-outcome {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.roll-detail {
+  font-size: 10px;
+  color: var(--text-off);
+}
+
+.roll-critical {
+  border-left-color: var(--accent);
+}
+.roll-critical .roll-outcome {
+  color: var(--accent);
+}
+
+.roll-success {
+  border-left-color: var(--text-dim);
+}
+
+.roll-failure {
+  border-left-color: var(--serious);
+}
+.roll-failure .roll-outcome {
+  color: var(--serious);
+}
+
+.roll-fumble {
+  border-left-color: var(--major);
+}
+.roll-fumble .roll-outcome {
+  color: var(--major);
 }
 
 /* ---------- notices ---------- */
