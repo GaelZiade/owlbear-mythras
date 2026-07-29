@@ -11,13 +11,15 @@ import { orderedCombatants, turnStatus } from "../core/combat";
 import { rollInitiative } from "../core/dice";
 import type { Combatant } from "../core/types";
 import { CombatantRow } from "./CombatantRow";
-import { AddAll, AddBlank, AddToken, Dice, Play, Stop, Undo } from "./icons";
+import { AddAll, AddBlank, AddToken, Dice, Info, Play, Stop, Undo } from "./icons";
+import { Notices } from "./Notices";
 import { useOwlbearTheme, useSession } from "./useSession";
 
 export function App() {
   useOwlbearTheme();
   const session = useSession();
   const [hint, setHint] = useState<string | null>(null);
+  const [showNotices, setShowNotices] = useState(false);
   const { state, role, gmPresent, canUndo, ready } = session;
   const isGm = role === "GM";
 
@@ -69,6 +71,22 @@ export function App() {
             )}
           </div>
 
+          {/*
+            Reachable by players too, not only the GM: the Mythras and Chaosium
+            notices are a condition of using MEG content, so they cannot sit
+            behind a role check.
+          */}
+          <button
+            type="button"
+            className="ghost notices-toggle"
+            title="Notices"
+            aria-label="Notices"
+            aria-expanded={showNotices}
+            onClick={() => setShowNotices((open) => !open)}
+          >
+            <Info />
+          </button>
+
           {isGm && (
             <button
               type="button"
@@ -82,6 +100,8 @@ export function App() {
             </button>
           )}
         </div>
+
+        {showNotices && <Notices onClose={() => setShowNotices(false)} />}
 
         {isGm && (
           <div className="toolbar">

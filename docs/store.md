@@ -68,3 +68,13 @@ Bug reports and feature requests are welcome at
 
 This extension uses no copyrighted Mythras text. Rules content derives from
 *Mythras Imperative*, published by The Design Mechanism under the ORC License.
+
+Creatures, encounters and statistics imported into this package were created or
+adapted using MeG, the Mythras Enemy Generator (<https://mythras.skoll.xyz/>).
+"Mythras" is a Registered Trademark of The Design Mechanism Inc, and is used
+with permission. This generator uses trademarks and/or copyrights owned by
+Chaosium Inc/Moon Design Publications LLC, which are used under Chaosium Inc's
+Fan Material Policy. We are expressly prohibited from charging you to use or
+access this content. This generator is not published, endorsed, or specifically
+approved by Chaosium Inc. For more information about Chaosium Inc's products,
+please visit [www.chaosium.com](https://www.chaosium.com).

@@ -243,17 +243,43 @@ Bonus with the armor penalty already applied; and each entry in `hit_locations`
 *Hindquarters*: a quadruped. Had hit locations been a fixed humanoid enum, this
 import would require rewriting the model rather than adding a parser.
 
+### Permission, and what it costs
+
+The MEG author was asked before any traffic was sent, and granted permission to
+import MEG creatures into Owlbear Rodeo subject to conditions. Those conditions
+are binding on this project, and one of them **invalidates the plan above**:
+
+| Condition | Consequence here |
+| --- | --- |
+| No scraping the site "in any form" | — |
+| No "large amounts of requests"; the site is small computewise | — |
+| No "creating databases from major contents of the site" | **Kills the index prefetch.** `index_json/` is 4,867 entries and ~2.9 MB — the whole catalogue, per user. Whatever it is called, downloading it is building a database of the major contents |
+| No commercial charge; tips or Patreon for hosting costs are fine | The extension stays free. It already is |
+| No iOS or Android apps | Web only. Not currently a temptation, but it binds any future port |
+| Mythras and Chaosium notices visible in the tool | `src/ui/Notices.tsx`, reachable by GM and players alike |
+
+The notice wording is supplied by MEG and reproduced exactly. It is not ours to
+edit or shorten; see the header of `Notices.tsx`.
+
+Most of these flow from Chaosium's Fan Material Policy rather than from MEG
+itself, because much of MEG's content is under Chaosium copyright. That means
+they are not negotiable by the MEG author either.
+
 ### Rules for the integration
 
-1. **Fetch live, never vendor the data into this repository.** MEG content is
-   authored by third parties and includes licensed settings material. Fetching
-   into the user's own session is not redistribution, and it is also what makes
-   the catalogue stay current as people add to MEG — which is the point.
-2. **Treat the endpoints as undocumented.** No terms, no versioning, no
-   stability promise. The importer must degrade gracefully when they change or
-   disappear, and must never be on the panel's critical path.
-3. **Be a good neighbour.** Cache the index rather than refetching it, and
-   contact the site author before sending real traffic.
+1. **Never vendor the data into this repository.** MEG content is authored by
+   third parties and includes licensed settings material. Unchanged, and now
+   doubly so.
+2. **One request per creature the user actually asked for.** No catalogue
+   prefetch, no background sync, no local mirror of the index. If browsing needs
+   a catalogue, the catalogue is not ours to hold.
+3. **Treat the endpoints as undocumented.** No versioning, no stability promise.
+   The importer must degrade gracefully when they change or disappear, and must
+   never be on the panel's critical path.
+4. **Prefer a file the user already has.** MEG JSON the user exports themselves
+   costs the site nothing and is explicitly permitted. That is the safest import
+   path and should be the one that always works, with any live fetch as an
+   addition rather than the foundation.
 
 ## 6. Open questions
 

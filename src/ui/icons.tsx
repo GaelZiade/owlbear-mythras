@@ -1,9 +1,9 @@
 /**
  * Inline icons.
  *
- * Drawn rather than pulled from a font or a package: there are eight of them,
- * they must inherit the Owlbear palette through `currentColor`, and an icon
- * dependency would outweigh the markup it saves.
+ * Drawn rather than pulled from a font or a package: there is a handful of
+ * them, they must inherit the Owlbear palette through `currentColor`, and an
+ * icon dependency would outweigh the markup it saves.
  */
 
 interface IconProps {
@@ -107,5 +107,12 @@ export const AddAll = (props: IconProps) => (
 export const AddBlank = (props: IconProps) => (
   <Icon {...props}>
     <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
+export const Info = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 7.5v.01" />
   </Icon>
 );

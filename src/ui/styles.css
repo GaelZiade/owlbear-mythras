@@ -678,6 +678,60 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text-dim);
 }
 
+/* ---------- notices ---------- */
+
+.notices-toggle {
+  width: 28px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--text-off);
+}
+
+.notices-toggle:hover {
+  color: var(--text-dim);
+}
+
+.notices {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.notices-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notices h2 {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.notices h3 {
+  margin: 8px 0 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-off);
+}
+
+.notices p {
+  margin: 0 0 4px;
+}
+
+.notices a {
+  color: var(--accent);
+}
+
 /* ---------- fatigue ---------- */
 
 /*

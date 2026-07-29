@@ -146,3 +146,21 @@ reproduced here.
 
 Any rulebook PDFs kept locally for reference are excluded in `.gitignore`. Do not
 add them.
+
+### Mythras Enemy Generator
+
+The MEG author granted permission to import MEG creatures into Owlbear Rodeo, on
+conditions that bind this project: no scraping or bulk downloading of the site,
+no charging for access, no iOS or Android port, and the notices below visible in
+the tool. They are recorded in [DECISIONS.md](DECISIONS.md) §5 and shown in the
+panel under **Notices**.
+
+> Creatures, encounters and statistics imported into this package were created or
+> adapted using MeG, the Mythras Enemy Generator (<https://mythras.skoll.xyz/>).
+> "Mythras" is a Registered Trademark of The Design Mechanism Inc, and is used
+> with permission. This generator uses trademarks and/or copyrights owned by
+> Chaosium Inc/Moon Design Publications LLC, which are used under Chaosium Inc's
+> Fan Material Policy. We are expressly prohibited from charging you to use or
+> access this content. This generator is not published, endorsed, or specifically
+> approved by Chaosium Inc. For more information about Chaosium Inc's products,
+> please visit [www.chaosium.com](https://www.chaosium.com).
