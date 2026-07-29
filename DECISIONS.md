@@ -272,14 +272,15 @@ they are not negotiable by the MEG author either.
    doubly so.
 2. **One request per creature the user actually asked for.** No background sync,
    no speculative fetching, nothing the user did not ask for by name.
-3. **The index is an open question, not a settled one.** The chosen design is a
-   search box over creature names, which needs the catalogue: either
-   `index_json/` once per user and cached, or a server-side search endpoint if
-   MEG has one. Downloading an index of *names and ids* is arguably not
-   "creating a database from major contents" — the contents are the statblocks,
-   which stay on the server and are fetched one at a time — but that reading is
-   ours, not the author's, and 2.9 MB per user is real load on a small server.
-   **Ask before implementing.** Recorded as open question §6.8.
+3. **The index may be read.** Granted by the author. Reading `index_json/` to
+   power a name search is not what the scraping rule is aimed at.
+
+   The reason matters more than the permission, because it shapes what the
+   search may display. The rule exists because the full database holds creations
+   users chose **not** to share publicly, and because it is unmoderated and may
+   therefore hold official Mythras content rather than homebrew. So: fetch the
+   index once per user and cache it, never mirror the statblocks behind it, and
+   show only entries the site itself marks as public. See open question §6.8.
 4. **Treat the endpoints as undocumented.** No versioning, no stability promise.
    The importer must degrade gracefully when they change or disappear, and must
    never be on the panel's critical path.
@@ -310,10 +311,9 @@ they are not negotiable by the MEG author either.
    forced marches, swimming and holding your breath are all outside a combat
    tracker's knowledge. `worsenFatigue` and `recoverFatigue` exist for a future
    caller; today the level is always set by hand.
-8. **May the MEG index be fetched and cached?** (§5). The chosen import design is
-   a search box over creature names, which needs the catalogue. Reading
-   `index_json/` once per user and caching it is either fine — it is names and
-   ids, published as JSON, while the statblocks stay on the server — or it is the
-   "database from major contents" the author ruled out. The author has been
-   responsive and this is a question for them, not for us to interpret. Blocks
-   the search UI; nothing else.
+8. **Which index entries may be shown?** (§5). The index may be read — see §5 —
+   but the author's reason for the scraping rule is that the full database holds
+   creations users chose not to share publicly, and, being unmoderated, may hold
+   official Mythras content rather than homebrew. If `index_json/` distinguishes
+   public entries from private ones, the search must show only the public ones.
+   Needs checking against the real payload before the search UI ships.
