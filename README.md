@@ -31,7 +31,9 @@ initiative by Cycles, Action Points, and wounds by hit location.
 - **Import a character sheet** exported from the group's online builder: the
   seven Characteristics, the armour worn with its Initiative penalty, and every
   skill and combat style worked out from its formula.
-- **Roll a skill** against any of the eight difficulty grades, under either of
+- **Link a combatant to a token** so an imported character follows the token its
+  player moves, and a redrawn token finds its sheet again.
+- **Roll a skill** in a dialog, against any of the eight difficulty grades, under either of
   the book's two modifier methods, with criticals, fumbles and the automatic
   ranges applied. Fatigue raises the grade on its own.
 - **Sheets survive leaving the fight.** Remove somebody from the tracker and add

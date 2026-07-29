@@ -23,9 +23,11 @@ const CACHE_KEY = "rodeo.owlbear.mythras/meg-index";
 /**
  * How long a cached index is used without asking again.
  *
- * A week. New MEG templates appear steadily but nobody's session depends on
- * having today's, and the alternative — revalidating often — is precisely the
- * traffic we undertook not to send.
+ * A week. The MEG author asked for the index to be cached because the endpoint
+ * is heavy, suggesting ten minutes as a floor; a week is far kinder to the
+ * server than that and costs nothing but freshness, since new templates appear
+ * steadily but nobody's session depends on having today's. The Refresh button
+ * in the importer covers the case where somebody does.
  */
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 

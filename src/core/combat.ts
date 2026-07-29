@@ -47,6 +47,15 @@ export type CombatEvent =
   | { type: "combatant/initiativeBonusChanged"; combatantId: string; initiativeBonus: number }
   | { type: "combatant/actionPointsMaxChanged"; combatantId: string; maxActionPoints: number }
   | { type: "combatant/ownerChanged"; combatantId: string; ownerId: string | undefined }
+  /**
+   * Points a combatant at a scene token, or unlinks it.
+   *
+   * The link is what makes a sheet durable — the archive is keyed by token id —
+   * so it also has to be settable after the fact. A character imported from a
+   * file arrives with no token at all, and a token deleted and redrawn comes
+   * back with a new id that nothing points at.
+   */
+  | { type: "combatant/tokenChanged"; combatantId: string; tokenId: string | undefined }
   | { type: "combatant/initiativeModifierChanged"; combatantId: string; initiativeModifier: number }
   | {
       type: "combatant/actionPointsModifierChanged";
@@ -399,6 +408,12 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
         characters: { ...state.characters, [leaving.tokenId]: toStoredCharacter(leaving) },
       };
     }
+
+    case "combatant/tokenChanged":
+      return updateCombatant(state, event.combatantId, (combatant) => {
+        const { tokenId: _replaced, ...rest } = combatant;
+        return event.tokenId === undefined ? rest : { ...rest, tokenId: event.tokenId };
+      });
 
     case "combatant/initiativeModifierChanged":
       return updateCombatant(state, event.combatantId, (combatant) => ({

@@ -365,6 +365,34 @@ The armour's total ENC becomes the **Initiative modifier**, not a new base —
 which is what §1.3's armour penalty has always been, and the reason the field
 was split in the first place.
 
+### 5c. The token link is the durability
+
+A sheet is archived under its Owlbear token id (§2.2), which makes the link the
+thing that decides whether a character survives leaving the fight. Two cases
+proved that has to be editable rather than only set at add time:
+
+- A character imported from a file arrives with **no token at all**, so nothing
+  can be filed and nothing comes back.
+- A token deleted from the scene and drawn again comes back with a **new id**,
+  which nothing points at. The old sheet is still in the archive, unreachable.
+
+So the panel has a Token dropdown listing the scene's character and mount
+layers, GM only. Relinking a redrawn token to the combatant restores the path to
+its sheet. This is also what makes an imported player character assignable to
+the token their player actually moves.
+
+The list is read once when the panel opens rather than subscribed to: a scene's
+token list changes rarely and a live subscription for a dropdown is not worth
+the wiring.
+
+### 5d. MEG index caching, as the author asked
+
+The MEG author was asked directly and answered: the index endpoint is heavy and
+should be cached, *"let's say 10min"*. This project caches it for **a week**,
+which is far kinder than the floor requested, with a Refresh button for the day
+somebody adds a creature and wants it immediately. The reasoning is in
+`meg/client.ts`; the ten minutes is a floor, not a target.
+
 ## 6. Open questions
 
 1. **The real Owlbear metadata size limit.** Not stated in the public docs and
@@ -384,7 +412,13 @@ was split in the first place.
    reproducing its values needs checking against T6 before release. The level
    names and the two applied columns sit in `fatigue.ts` and would be the thing
    to revisit; nothing else in the codebase depends on those numbers.
-7. **Automatic Fatigue accrual.** The engine never raises a level on its own —
+7. **Which of the two Difficulty methods a table uses** (§1.9). Imperative
+   prints both and says to pick one and keep it, which makes it a decision about
+   the game rather than about a roll — so it does not belong in a control the
+   player meets every time they throw. Hard-coded to multiplying, the book's own
+   "normal method". If a table wants the flat percentages it needs to become a
+   room-level setting, not a dropdown in the roll dialog.
+8. **Automatic Fatigue accrual.** The engine never raises a level on its own —
    forced marches, swimming and holding your breath are all outside a combat
    tracker's knowledge. `worsenFatigue` and `recoverFatigue` exist for a future
    caller; today the level is always set by hand.

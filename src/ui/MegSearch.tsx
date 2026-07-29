@@ -74,9 +74,31 @@ export function MegSearch({ onAdd, onClose }: Props) {
     <section className="meg" aria-label="Import from the Mythras Enemy Generator">
       <div className="meg-head">
         <h2>Import from MEG</h2>
-        <button type="button" className="ghost" onClick={onClose} aria-label="Close importer">
-          ✕
-        </button>
+        <span className="meg-actions">
+          {/*
+            The cache is a week long, which is deliberate — the endpoint is heavy
+            and the author asked for it. This is the escape hatch for the day
+            somebody adds a creature and wants it now.
+          */}
+          <button
+            type="button"
+            className="chip"
+            disabled={status === "loading"}
+            onClick={() => {
+              setStatus("loading");
+              void loadIndex({ force: true }).then((result) => {
+                setEntries(result.entries);
+                setError(result.error);
+                setStatus(result.entries.length > 0 ? "ready" : "failed");
+              });
+            }}
+          >
+            Refresh
+          </button>
+          <button type="button" className="ghost" onClick={onClose} aria-label="Close importer">
+            ✕
+          </button>
+        </span>
       </div>
 
       {status === "loading" && <p className="meg-note">Loading the catalogue…</p>}

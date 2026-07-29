@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { dispatch, type Session } from "../adapters/owlbear/store";
 import {
@@ -18,7 +18,8 @@ import type { Combatant, HitLocation, WoundLevel } from "../core/types";
 import { applyHealing, previewDamage, woundLevel } from "../core/wounds";
 import { BodyDiagram } from "./BodyDiagram";
 import { CharacteristicsPanel } from "./Characteristics";
-import { RollPanel } from "./RollPanel";
+import { RollDialog } from "./RollDialog";
+import { sceneTokens } from "../adapters/owlbear/tokens";
 
 const DIFFICULTY_LABEL: Record<string, string> = {
   none: "—",
@@ -81,8 +82,24 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
   const [mode, setMode] = useState<Mode>("damage");
   const [amount, setAmount] = useState(1);
   const [ignoreArmor, setIgnoreArmor] = useState(false);
+  const [rolling, setRolling] = useState(false);
+  const [tokens, setTokens] = useState<{ id: string; name: string }[]>([]);
 
   const isGm = session.role === "GM";
+
+  // Read once when the panel opens rather than kept in sync: the scene's token
+  // list changes rarely and a subscription for a dropdown is not worth it.
+  useEffect(() => {
+    if (!isGm) return;
+    let live = true;
+    void sceneTokens().then((found) => {
+      if (live) setTokens(found);
+    });
+    return () => {
+      live = false;
+    };
+  }, [isGm]);
+
   const fatigue = fatigueRow(combatant.fatigue);
   const selected = combatant.locations.find(({ id }) => id === selectedId) ?? null;
   const outcome = selected ? outcomeFor(selected, mode, amount, ignoreArmor) : null;
@@ -286,9 +303,16 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
             <CharacteristicsPanel combatant={combatant} />
           </div>
 
-          <div className="settings-wide">
-            <RollPanel combatant={combatant} />
-          </div>
+          {(combatant.skills?.length ?? 0) > 0 && (
+            <button
+              type="button"
+              className="settings-wide roll-open"
+              onClick={() => setRolling(true)}
+            >
+              Roll a skill
+              <span className="dim">{combatant.skills!.length}</span>
+            </button>
+          )}
 
           {/*
             Base and adjustment, not one number. With the base derived from the
@@ -539,6 +563,37 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
           {isGm && (
             <>
               <span className="settings-caption">Table</span>
+
+              {/*
+                The link is what makes the sheet durable — the archive is keyed
+                by token id — so it has to be settable after the fact. A
+                character imported from a file has no token at all, and a token
+                deleted and redrawn comes back with an id nothing points at.
+              */}
+              <label className="settings-wide">
+                Token
+                <select
+                  value={combatant.tokenId ?? ""}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "combatant/tokenChanged",
+                      combatantId: combatant.id,
+                      tokenId: event.target.value === "" ? undefined : event.target.value,
+                    })
+                  }
+                >
+                  <option value="">Not linked</option>
+                  {tokens.map((token) => (
+                    <option key={token.id} value={token.id}>
+                      {token.name}
+                    </option>
+                  ))}
+                  {combatant.tokenId !== undefined &&
+                    !tokens.some((token) => token.id === combatant.tokenId) && (
+                      <option value={combatant.tokenId}>Token no longer in the scene</option>
+                    )}
+                </select>
+              </label>
             <label className="settings-wide">
               Owner
               <select
@@ -569,6 +624,7 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
           )}
         </div>
       )}
+      {rolling && <RollDialog combatant={combatant} onClose={() => setRolling(false)} />}
     </div>
   );
 }

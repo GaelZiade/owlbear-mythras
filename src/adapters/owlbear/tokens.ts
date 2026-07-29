@@ -88,3 +88,11 @@ export async function combatantsInSelection(
     (combatant) => combatant.tokenId !== undefined && selected.has(combatant.tokenId),
   );
 }
+
+/** Every token that could stand for a combatant, for the link control. */
+export async function sceneTokens(): Promise<{ id: string; name: string }[]> {
+  const items = await OBR.scene.items.getItems(
+    (item) => item.layer === "CHARACTER" || item.layer === "MOUNT",
+  );
+  return items.map(({ id, name }) => ({ id, name }));
+}

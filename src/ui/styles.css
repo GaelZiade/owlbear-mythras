@@ -834,6 +834,18 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text);
 }
 
+.meg-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meg-actions .chip {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  font-size: 10px;
+}
+
 .meg-controls {
   display: flex;
   gap: 6px;
@@ -1027,15 +1039,117 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text-off);
 }
 
-/* ---------- rolls ---------- */
+/* ---------- dialog ---------- */
 
-.rolls {
+/*
+ * Owlbear's panel is narrow and already dense. A dialog takes the whole of it
+ * for as long as the interaction lasts and then gives it back, instead of
+ * competing for room with the statblock underneath.
+ */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
   display: grid;
-  gap: 6px;
+  place-items: center;
+  padding: 10px;
+  background: color-mix(in srgb, #000 55%, transparent);
 }
 
-.roll-skill,
-.roll-controls label {
+.dialog {
+  width: 100%;
+  max-width: 380px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 32px color-mix(in srgb, #000 45%, transparent);
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dialog h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- rolls ---------- */
+
+/* Opens the dialog; the count is there so it reads as "there are skills here". */
+.roll-open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.roll-open:hover {
+  color: var(--text);
+}
+
+.roll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 210px;
+  overflow-y: auto;
+  display: grid;
+  gap: 2px;
+}
+
+.roll-pick {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 7px;
+  text-align: left;
+  font-size: 12px;
+  background: var(--bg);
+}
+
+.roll-pick:hover {
+  background: var(--raise);
+}
+
+.roll-pick.on {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg));
+  outline: 1px solid var(--accent);
+}
+
+.roll-style {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-off);
+}
+
+.roll-empty {
+  padding: 6px;
+  font-size: 11px;
+  color: var(--text-off);
+}
+
+.roll-grade {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1045,11 +1159,6 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text-off);
 }
 
-.roll-controls {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
 
 .roll-note {
   margin: 0;
