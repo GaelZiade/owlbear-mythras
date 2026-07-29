@@ -102,6 +102,13 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
         onSelect={setSelectedId}
       />
 
+      {/*
+        Above the locations, not tucked below the controls: for an imported
+        creature this is where "Rabble" or a poison's rules live, and it is no
+        use to a GM who has to scroll past the whole statblock to find it.
+      */}
+      {combatant.notes && <p className="combatant-notes">{combatant.notes}</p>}
+
       <ul className="locations">
         {combatant.locations.map((location) => {
           const wound = woundLevel(location);

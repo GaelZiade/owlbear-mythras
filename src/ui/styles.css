@@ -678,6 +678,23 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text-dim);
 }
 
+/*
+ * Imported creatures carry long notes — some MEG entries run to several
+ * paragraphs of poison rules — so this scrolls rather than pushing the
+ * statblock off the panel. `pre-wrap` keeps the line breaks the author typed.
+ */
+.combatant-notes {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  max-height: 140px;
+  overflow-y: auto;
+  border-left: 2px solid var(--line);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: var(--text-dim);
+}
+
 /* ---------- notices ---------- */
 
 .notices-toggle {

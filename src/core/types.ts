@@ -70,6 +70,15 @@ export interface Combatant {
    * it was. That keeps the schema version where it is.
    */
   fatigue?: FatigueLevel;
+  /**
+   * Free text shown in the detail panel, absent meaning none.
+   *
+   * Exists because imported creatures carry their mechanics here rather than in
+   * the statblock: "Rabble", "***Total 5 Hitpoints***", ability descriptions.
+   * Dropping it on import would lose the half of the creature the tracker
+   * cannot model.
+   */
+  notes?: string;
   locations: HitLocation[];
   /**
    * Toggled by hand, never derived from Hit Points.
