@@ -110,6 +110,13 @@ export const AddBlank = (props: IconProps) => (
   </Icon>
 );
 
+export const Search = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="11" cy="11" r="6" />
+    <path d="m16 16 4 4" />
+  </Icon>
+);
+
 export const Info = (props: IconProps) => (
   <Icon {...props}>
     <circle cx="12" cy="12" r="9" />

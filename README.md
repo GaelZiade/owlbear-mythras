@@ -21,6 +21,9 @@ initiative by Cycles, Action Points, and wounds by hit location.
   where a blow landed by pointing at it.
 - **Damage preview** before you commit: how many points would remain, what wound
   it would cause, and how much the armor absorbed.
+- **Import from the Mythras Enemy Generator**: search the catalogue by name,
+  race or tag and roll however many you need. The catalogue is fetched once and
+  searched locally, so typing costs the site nothing.
 - **Out of the fight** toggle that skips a combatant in the initiative order.
 - **Fatigue** across the table's ten levels. The Initiative and Action Point
   penalties are applied to the order and the pips automatically; the difficulty

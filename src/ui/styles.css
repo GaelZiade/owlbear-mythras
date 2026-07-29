@@ -695,6 +695,112 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text-dim);
 }
 
+/* ---------- MEG importer ---------- */
+
+.meg {
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.meg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.meg h2 {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.meg-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.meg-query {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.meg-amount {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-off);
+}
+
+.meg-amount input {
+  width: 44px;
+}
+
+/*
+ * Capped and scrollable: the catalogue has thousands of entries and a short
+ * query matches plenty of them. The list must not push the fight off screen.
+ */
+.meg-results {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  display: grid;
+  gap: 2px;
+}
+
+.meg-result {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 6px;
+  padding: 5px 7px;
+  text-align: left;
+  background: var(--surface);
+  border-radius: 4px;
+}
+
+.meg-result:hover:not(:disabled) {
+  background: var(--surface-hover, var(--surface));
+  outline: 1px solid var(--line);
+}
+
+.meg-result-name {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.meg-result-meta {
+  grid-column: 1;
+  font-size: 10px;
+  color: var(--text-off);
+}
+
+.meg-result-owner {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-size: 10px;
+  color: var(--text-off);
+}
+
+.meg-note {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.meg-error {
+  color: var(--serious);
+}
+
 /* ---------- notices ---------- */
 
 .notices-toggle {

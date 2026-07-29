@@ -284,7 +284,12 @@ they are not negotiable by the MEG author either.
 4. **Treat the endpoints as undocumented.** No versioning, no stability promise.
    The importer must degrade gracefully when they change or disappear, and must
    never be on the panel's critical path.
-5. **Prefer a file the user already has.** MEG JSON the user exports themselves
+5. **Never re-derive what MEG already rolled.** MEG's numbers are final: they
+   include natural armour, racial modifiers and features that §1.4's tables know
+   nothing about. Recomputing Action Points from INT + DEX on an imported
+   creature would sometimes disagree with the statblock, and the statblock is
+   right. The import copies; it does not calculate.
+6. **Prefer a file the user already has.** MEG JSON the user exports themselves
    costs the site nothing and is explicitly permitted. That is the safest import
    path and should be the one that always works, with any live fetch as an
    addition rather than the foundation.
@@ -311,9 +316,11 @@ they are not negotiable by the MEG author either.
    forced marches, swimming and holding your breath are all outside a combat
    tracker's knowledge. `worsenFatigue` and `recoverFatigue` exist for a future
    caller; today the level is always set by hand.
-8. **Which index entries may be shown?** (§5). The index may be read — see §5 —
-   but the author's reason for the scraping rule is that the full database holds
-   creations users chose not to share publicly, and, being unmoderated, may hold
-   official Mythras content rather than homebrew. If `index_json/` distinguishes
-   public entries from private ones, the search must show only the public ones.
-   Needs checking against the real payload before the search UI ships.
+8. **Characteristics and derived attributes.** `tables.ts` can turn STR/CON/SIZ
+   and the rest into Action Points, Hit Points per location and the Initiative
+   Bonus, but only `hitPointsFor` is wired up — `actionPointsFor`,
+   `initiativeBonusFor` and `initiativePenaltyFor` are reachable from tests and
+   nowhere else, because nothing in the interface accepts characteristics. A
+   blank combatant therefore gets a hardcoded default rather than a derivation.
+   Whether to store characteristics is open; what is *not* open is re-deriving
+   over an imported creature's numbers, which are already final. See §5.

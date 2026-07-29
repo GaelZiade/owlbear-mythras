@@ -11,7 +11,8 @@ import { orderedCombatants, turnStatus } from "../core/combat";
 import { rollInitiative } from "../core/dice";
 import type { Combatant } from "../core/types";
 import { CombatantRow } from "./CombatantRow";
-import { AddAll, AddBlank, AddToken, Dice, Info, Play, Stop, Undo } from "./icons";
+import { AddAll, AddBlank, AddToken, Dice, Info, Play, Search, Stop, Undo } from "./icons";
+import { MegSearch } from "./MegSearch";
 import { Notices } from "./Notices";
 import { useOwlbearTheme, useSession } from "./useSession";
 
@@ -20,6 +21,7 @@ export function App() {
   const session = useSession();
   const [hint, setHint] = useState<string | null>(null);
   const [showNotices, setShowNotices] = useState(false);
+  const [showMeg, setShowMeg] = useState(false);
   const { state, role, gmPresent, canUndo, ready } = session;
   const isGm = role === "GM";
 
@@ -141,7 +143,30 @@ export function App() {
             >
               <AddBlank />
             </button>
+            <button
+              type="button"
+              title="Import from the Mythras Enemy Generator"
+              aria-expanded={showMeg}
+              className={showMeg ? "on" : ""}
+              onClick={() => setShowMeg((open) => !open)}
+            >
+              <Search />
+            </button>
           </div>
+        )}
+
+        {isGm && showMeg && (
+          <MegSearch
+            onClose={() => setShowMeg(false)}
+            onAdd={(incoming, problems) => {
+              add(incoming, "MEG returned nothing that could be imported.");
+              // Problems are shown even when the import succeeded: a dropped hit
+              // location leaves a creature the GM needs to look at, not a silent
+              // gap in the d20 they find out about mid-fight.
+              if (problems.length > 0) setHint(problems.join(" "));
+              if (incoming.length > 0 && problems.length === 0) setShowMeg(false);
+            }}
+          />
         )}
       </header>
 
