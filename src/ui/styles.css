@@ -896,6 +896,32 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--serious);
 }
 
+/* What the base and the modifier add up to, beside the fields that make them. */
+.settings-total {
+  grid-column: 1 / -1;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 6px;
+  padding: 5px 7px;
+  border-radius: var(--r);
+  background: var(--bg);
+}
+
+.settings-total dt {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-off);
+}
+
+.settings-total dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- characteristics ---------- */
 
 .chars {

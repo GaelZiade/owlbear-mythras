@@ -222,6 +222,18 @@ export async function connect(): Promise<() => void> {
     ready: true,
   });
 
+  // Only the GM writes, so only the GM records who has been in the room. A
+  // player's client would have the request rejected anyway.
+  const rememberPlayers = (seen: ReadonlyArray<{ id: string; name: string }>) => {
+    if (session.role !== "GM") return;
+    const players = [self, ...seen].map(({ id, name }) => ({ id, name }));
+    const known = new Set(session.state.knownPlayers.map((player) => player.id));
+    if (players.every((player) => known.has(player.id))) return;
+    dispatch({ type: "players/seen", players });
+  };
+
+  rememberPlayers(players);
+
   const unsubscribers = [
     OBR.room.onMetadataChange((updated) => {
       // Our own writes come back through here. While any are still settling the
@@ -235,6 +247,7 @@ export async function connect(): Promise<() => void> {
         party: toPartyMembers(updated, session.self),
         gmPresent: session.role === "GM" || updated.some((player) => player.role === "GM"),
       });
+      rememberPlayers(updated);
     }),
   ];
 

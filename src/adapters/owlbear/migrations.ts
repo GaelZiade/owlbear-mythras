@@ -48,6 +48,15 @@ const MIGRATIONS: Record<number, Migration> = {
 
     return { ...rest, activeTurn, schemaVersion: 2 };
   },
+
+  /**
+   * 2 → 3: character sheets outlive the roster, and the room remembers players.
+   *
+   * Both are additive, so an existing fight carries over untouched — it simply
+   * starts with an empty archive. Nothing can be reconstructed for combatants
+   * removed before this version: their sheets were genuinely gone.
+   */
+  2: (state) => ({ ...state, characters: {}, knownPlayers: [], schemaVersion: 3 }),
 };
 
 /**
@@ -75,7 +84,19 @@ export function migrate(raw: unknown): CombatState {
     version += 1;
   }
 
-  return isCombatState(state) ? state : createEmptyState();
+  if (!isCombatState(state)) return createEmptyState();
+
+  // Belt and braces: a state written at the current version by a build that
+  // crashed mid-write could still be missing an additive field.
+  return {
+    ...state,
+    characters: isRecord(state.characters) ? state.characters : {},
+    knownPlayers: Array.isArray(state.knownPlayers) ? state.knownPlayers : [],
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, never> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isCombatState(

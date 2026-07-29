@@ -12,7 +12,7 @@ import type { Characteristics } from "./characteristics";
 import type { FatigueLevel } from "./fatigue";
 
 /** Version of the persisted state. Changing the model means bumping this and adding a migration. */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /**
  * A hit location.
@@ -57,12 +57,28 @@ export interface Combatant {
   /** Result of 1d10 + Initiative Bonus. Ties act simultaneously. */
   initiative: number;
   /**
-   * Initiative Bonus: the average of INT and DEX, less the armor penalty.
-   * Stored so initiative can be rolled for a whole group at once.
+   * Initiative Bonus when there are no Characteristics to derive one from.
+   *
+   * Creatures imported from MEG land here: their `strike_rank` is already final
+   * and there is nothing to recompute it from. A character with Characteristics
+   * ignores this and uses the derived value instead — see
+   * `effectiveInitiativeBonus`.
    */
   initiativeBonus: number;
   actionPoints: number;
+  /** Maximum Action Points when there are no Characteristics. Same story as above. */
   maxActionPoints: number;
+  /**
+   * Adjustment to the Initiative Bonus, on top of whatever the base is.
+   *
+   * This is where armour lives: a hoplite panoply is 28 ENC and costs 6. It is
+   * kept separate from the base rather than folded into it because the two have
+   * different lifetimes — the base follows the Characteristics, the modifier
+   * follows what the character is currently wearing.
+   */
+  initiativeModifier?: number;
+  /** Adjustment to maximum Action Points, for effects that grant or cost one. */
+  actionPointsModifier?: number;
   /**
    * Fatigue level, absent meaning Fresh.
    *
@@ -120,6 +136,38 @@ export interface ActiveTurn {
   combatantIds: string[];
 }
 
+/**
+ * A character's durable half, kept when they leave the initiative order.
+ *
+ * The roster is not the sheet. Pulling somebody out of the fight used to
+ * destroy their Characteristics, armour, owner and wounds, so putting them back
+ * meant entering all of it again — which is not what "remove from tracker"
+ * means to anybody at a table.
+ *
+ * Archived on removal and restored on add, keyed by Owlbear token id. That
+ * makes the roster the single source of truth *during* a fight and this a pure
+ * archive, rather than two copies of the same data drifting apart.
+ */
+export interface StoredCharacter {
+  name: string;
+  ownerId?: string;
+  characteristics?: Characteristics;
+  initiativeBonus: number;
+  maxActionPoints: number;
+  initiativeModifier?: number;
+  actionPointsModifier?: number;
+  fatigue?: FatigueLevel;
+  notes?: string;
+  /** Kept whole, wounds included: someone pulled out of a fight is still hurt. */
+  locations: HitLocation[];
+}
+
+/** A player Owlbear has told us about, remembered so owners can be set offline. */
+export interface KnownPlayer {
+  id: string;
+  name: string;
+}
+
 export interface CombatState {
   schemaVersion: number;
   status: "idle" | "active";
@@ -136,6 +184,20 @@ export interface CombatState {
    */
   activeTurn: ActiveTurn | null;
   combatants: Combatant[];
+  /**
+   * Sheets of characters not currently in the fight, by token id.
+   *
+   * Only reachable through a token: a combatant added without one has nothing
+   * stable to key on, so it is not archived. That is the trade for not needing a
+   * character library and a screen to manage it.
+   */
+  characters: Record<string, StoredCharacter>;
+  /**
+   * Everyone seen in this room, so a combatant can be assigned to a player who
+   * is not connected right now. Owlbear only reports who is online, which meant
+   * the owner dropdown was empty whenever the party had not arrived yet.
+   */
+  knownPlayers: KnownPlayer[];
 }
 
 export function createEmptyState(): CombatState {
@@ -146,5 +208,7 @@ export function createEmptyState(): CombatState {
     cycle: 0,
     activeTurn: null,
     combatants: [],
+    characters: {},
+    knownPlayers: [],
   };
 }

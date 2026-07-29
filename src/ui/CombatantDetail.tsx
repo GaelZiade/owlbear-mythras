@@ -1,7 +1,12 @@
 import { useState } from "react";
 
 import { dispatch, type Session } from "../adapters/owlbear/store";
-import { effectiveInitiative, effectiveMaxActionPoints } from "../core/combat";
+import {
+  baseMaxActionPoints,
+  effectiveInitiative,
+  effectiveInitiativeBonus,
+  effectiveMaxActionPoints,
+} from "../core/combat";
 import {
   FATIGUE_TABLE,
   fatigueRow,
@@ -80,6 +85,32 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
   const fatigue = fatigueRow(combatant.fatigue);
   const selected = combatant.locations.find(({ id }) => id === selectedId) ?? null;
   const outcome = selected ? outcomeFor(selected, mode, amount, ignoreArmor) : null;
+
+  /**
+   * Everyone who could own this combatant.
+   *
+   * Built from the room's record of players rather than from who is connected:
+   * Owlbear only reports the party that is online, so a GM setting up before
+   * anybody arrives had nobody to choose from but themselves.
+   */
+  const ownerOptions = (() => {
+    const online = new Map(session.party.map((member) => [member.id, member.name]));
+    const seen = new Map(session.state.knownPlayers.map((player) => [player.id, player.name]));
+    for (const [id, name] of online) seen.set(id, name);
+    if (combatant.ownerId !== undefined && !seen.has(combatant.ownerId)) {
+      seen.set(combatant.ownerId, "Unknown player");
+    }
+
+    return [...seen].map(([id, name]) => ({
+      id,
+      label:
+        id === session.playerId
+          ? `${name} (you)`
+          : online.has(id)
+            ? name
+            : `${name} — offline`,
+    }));
+  })();
 
   const setFatigue = (level: FatigueLevel) =>
     dispatch({ type: "combatant/fatigueChanged", combatantId: combatant.id, fatigue: level });
@@ -254,36 +285,94 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
             <CharacteristicsPanel combatant={combatant} />
           </div>
 
+          {/*
+            Base and adjustment, not one number. With the base derived from the
+            Characteristics, a single field could not hold both "what DEX and
+            INT say" and "what this armour costs" — and armour is the common
+            case, so it needs somewhere of its own to live.
+          */}
+          {/*
+            The base is editable only when there is nothing to derive it from.
+            A creature out of MEG has a final strike_rank and no Characteristics,
+            so its base has to stay typeable; a character with Characteristics
+            would only be able to disagree with them.
+          */}
+          {!combatant.characteristics && (
+            <>
+              <label>
+                Init. base
+                <input
+                  type="number"
+                  value={combatant.initiativeBonus}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "combatant/initiativeBonusChanged",
+                      combatantId: combatant.id,
+                      initiativeBonus: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+
+              <label>
+                AP base
+                <input
+                  type="number"
+                  min={0}
+                  value={combatant.maxActionPoints}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "combatant/actionPointsMaxChanged",
+                      combatantId: combatant.id,
+                      maxActionPoints: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+            </>
+          )}
+
           <label>
-            Init. bonus
+            Init. mod.
             <input
               type="number"
-              value={combatant.initiativeBonus}
+              value={combatant.initiativeModifier ?? 0}
               onChange={(event) =>
                 dispatch({
-                  type: "combatant/initiativeBonusChanged",
+                  type: "combatant/initiativeModifierChanged",
                   combatantId: combatant.id,
-                  initiativeBonus: Number(event.target.value),
+                  initiativeModifier: Number(event.target.value),
                 })
               }
             />
           </label>
 
           <label>
-            Max AP
+            AP mod.
             <input
               type="number"
-              min={0}
-              value={combatant.maxActionPoints}
+              value={combatant.actionPointsModifier ?? 0}
               onChange={(event) =>
                 dispatch({
-                  type: "combatant/actionPointsMaxChanged",
+                  type: "combatant/actionPointsModifierChanged",
                   combatantId: combatant.id,
-                  maxActionPoints: Number(event.target.value),
+                  actionPointsModifier: Number(event.target.value),
                 })
               }
             />
           </label>
+
+          {/* What the two above actually add up to, so the modifier is not read blind. */}
+          <dl className="settings-total">
+            <div>
+              <dt>Init. Bonus</dt>
+              <dd>{effectiveInitiativeBonus(combatant)}</dd>
+            </div>
+            <div>
+              <dt>Max AP</dt>
+              <dd>{baseMaxActionPoints(combatant)}</dd>
+            </div>
+          </dl>
 
           {/*
             Stepped rather than picked. Fatigue moves one level at a time at the
@@ -464,15 +553,11 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
                   one "(GM)" made the two look like duplicates.
                 */}
                 <option value="">Unassigned</option>
-                {session.party.map((member) => (
+                {ownerOptions.map((member) => (
                   <option key={member.id} value={member.id}>
-                    {member.id === session.playerId ? `${member.name} (you)` : member.name}
+                    {member.label}
                   </option>
                 ))}
-                {combatant.ownerId !== undefined &&
-                  !session.party.some((member) => member.id === combatant.ownerId) && (
-                    <option value={combatant.ownerId}>Absent player</option>
-                  )}
               </select>
             </label>
             </>

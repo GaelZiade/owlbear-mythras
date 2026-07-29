@@ -56,6 +56,12 @@ const PLAYER_EDITABLE_EVENTS = new Set<CombatEvent["type"]>([
    * character side of the line.
    */
   "combatant/characteristicsChanged",
+  /**
+   * The armour penalty and any effect adjusting Action Points. Same side of the
+   * line as the Characteristics they adjust — what you are wearing is yours.
+   */
+  "combatant/initiativeModifierChanged",
+  "combatant/actionPointsModifierChanged",
 ]);
 
 /**

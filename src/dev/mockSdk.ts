@@ -111,6 +111,8 @@ function seededFight(): CombatState {
     cycle: 1,
     activeTurn: { initiative: 17, combatantIds: ["c-anathaym"] },
     combatants,
+    characters: {},
+    knownPlayers: PLAYERS.map(({ id, name }) => ({ id, name })),
   };
 }
 

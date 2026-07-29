@@ -2,7 +2,14 @@ import { applyDamage, applyHealing, type DamageOptions } from "./wounds";
 import { deriveAttributes, type Characteristics } from "./characteristics";
 import { fatigueRow, type FatigueLevel } from "./fatigue";
 import { hitPointsFor, type BodyPart } from "./tables";
-import { SCHEMA_VERSION, type ActiveTurn, type Combatant, type CombatState } from "./types";
+import {
+  SCHEMA_VERSION,
+  type ActiveTurn,
+  type Combatant,
+  type CombatState,
+  type KnownPlayer,
+  type StoredCharacter,
+} from "./types";
 
 /**
  * Mythras combat engine.
@@ -40,6 +47,14 @@ export type CombatEvent =
   | { type: "combatant/initiativeBonusChanged"; combatantId: string; initiativeBonus: number }
   | { type: "combatant/actionPointsMaxChanged"; combatantId: string; maxActionPoints: number }
   | { type: "combatant/ownerChanged"; combatantId: string; ownerId: string | undefined }
+  | { type: "combatant/initiativeModifierChanged"; combatantId: string; initiativeModifier: number }
+  | {
+      type: "combatant/actionPointsModifierChanged";
+      combatantId: string;
+      actionPointsModifier: number;
+    }
+  /** Records who Owlbear has reported, so owners survive the party going offline. */
+  | { type: "players/seen"; players: KnownPlayer[] }
   | { type: "combatant/defeatedToggled"; combatantId: string }
   | { type: "combatant/fatigueChanged"; combatantId: string; fatigue: FatigueLevel }
   | {
@@ -71,6 +86,30 @@ export type CombatEvent =
     };
 
 /**
+ * The Initiative Bonus before Fatigue: derived when there are Characteristics
+ * to derive from, stored otherwise, plus whatever armour is costing.
+ *
+ * Two bases rather than one because the two kinds of combatant genuinely differ.
+ * A character built in the panel has Characteristics and the Bonus follows them;
+ * a creature out of MEG has a final `strike_rank` and nothing to recompute it
+ * from (DECISIONS §5).
+ */
+export function effectiveInitiativeBonus(combatant: Combatant): number {
+  const base = combatant.characteristics
+    ? deriveAttributes(combatant.characteristics).initiativeBonus
+    : combatant.initiativeBonus;
+  return base + (combatant.initiativeModifier ?? 0);
+}
+
+/** Maximum Action Points before Fatigue, on the same two-base rule. */
+export function baseMaxActionPoints(combatant: Combatant): number {
+  const base = combatant.characteristics
+    ? deriveAttributes(combatant.characteristics).actionPoints
+    : combatant.maxActionPoints;
+  return Math.max(0, base + (combatant.actionPointsModifier ?? 0));
+}
+
+/**
  * Maximum Action Points after Fatigue.
  *
  * Fatigue is applied here rather than written into `maxActionPoints` so the
@@ -82,7 +121,7 @@ export type CombatEvent =
  */
 export function effectiveMaxActionPoints(combatant: Combatant): number {
   const { actionPointsModifier } = fatigueRow(combatant.fatigue);
-  return Math.max(0, combatant.maxActionPoints + actionPointsModifier);
+  return Math.max(0, baseMaxActionPoints(combatant) + actionPointsModifier);
 }
 
 /**
@@ -235,6 +274,26 @@ function bodyPartFor(id: string, name: string): BodyPart | null {
   return null;
 }
 
+/** The half of a combatant that outlives the fight. */
+function toStoredCharacter(combatant: Combatant): StoredCharacter {
+  return {
+    name: combatant.name,
+    initiativeBonus: combatant.initiativeBonus,
+    maxActionPoints: combatant.maxActionPoints,
+    locations: combatant.locations,
+    ...(combatant.ownerId !== undefined ? { ownerId: combatant.ownerId } : {}),
+    ...(combatant.characteristics ? { characteristics: combatant.characteristics } : {}),
+    ...(combatant.initiativeModifier !== undefined
+      ? { initiativeModifier: combatant.initiativeModifier }
+      : {}),
+    ...(combatant.actionPointsModifier !== undefined
+      ? { actionPointsModifier: combatant.actionPointsModifier }
+      : {}),
+    ...(combatant.fatigue ? { fatigue: combatant.fatigue } : {}),
+    ...(combatant.notes ? { notes: combatant.notes } : {}),
+  };
+}
+
 function updateCombatant(
   state: CombatState,
   combatantId: string,
@@ -287,15 +346,82 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
     case "turn/advanced":
       return advanceTurn(state);
 
-    case "combatants/added":
+    /**
+     * Anyone whose token has a sheet on file arrives with it restored, rather
+     * than as a blank humanoid. Only the fight-scoped values are left fresh:
+     * rolled initiative starts at 0 and Action Points start full, because those
+     * belong to this fight and not to the character.
+     */
+    case "combatants/added": {
       if (event.combatants.length === 0) return state;
-      return { ...state, combatants: [...state.combatants, ...event.combatants] };
+      const restored = event.combatants.map((combatant) => {
+        const stored = combatant.tokenId ? state.characters[combatant.tokenId] : undefined;
+        if (!stored) return combatant;
 
-    case "combatant/removed":
+        const merged: Combatant = {
+          ...combatant,
+          name: stored.name,
+          initiativeBonus: stored.initiativeBonus,
+          maxActionPoints: stored.maxActionPoints,
+          locations: stored.locations,
+          ...(stored.ownerId !== undefined ? { ownerId: stored.ownerId } : {}),
+          ...(stored.characteristics ? { characteristics: stored.characteristics } : {}),
+          ...(stored.initiativeModifier !== undefined
+            ? { initiativeModifier: stored.initiativeModifier }
+            : {}),
+          ...(stored.actionPointsModifier !== undefined
+            ? { actionPointsModifier: stored.actionPointsModifier }
+            : {}),
+          ...(stored.fatigue ? { fatigue: stored.fatigue } : {}),
+          ...(stored.notes ? { notes: stored.notes } : {}),
+        };
+        return { ...merged, initiative: 0, actionPoints: effectiveMaxActionPoints(merged) };
+      });
+      return { ...state, combatants: [...state.combatants, ...restored] };
+    }
+
+    /**
+     * Removal archives the sheet rather than destroying it.
+     *
+     * A combatant with no token has nothing stable to file it under, so it is
+     * dropped as before — that is the cost of not keeping a character library.
+     */
+    case "combatant/removed": {
+      const leaving = state.combatants.find(({ id }) => id === event.combatantId);
+      const combatants = state.combatants.filter(({ id }) => id !== event.combatantId);
+      if (!leaving?.tokenId) return { ...state, combatants };
+
       return {
         ...state,
-        combatants: state.combatants.filter(({ id }) => id !== event.combatantId),
+        combatants,
+        characters: { ...state.characters, [leaving.tokenId]: toStoredCharacter(leaving) },
       };
+    }
+
+    case "combatant/initiativeModifierChanged":
+      return updateCombatant(state, event.combatantId, (combatant) => ({
+        ...combatant,
+        initiativeModifier: event.initiativeModifier,
+      }));
+
+    case "combatant/actionPointsModifierChanged":
+      return updateCombatant(state, event.combatantId, (combatant) => {
+        const updated = { ...combatant, actionPointsModifier: event.actionPointsModifier };
+        return {
+          ...updated,
+          actionPoints: Math.min(updated.actionPoints, effectiveMaxActionPoints(updated)),
+        };
+      });
+
+    /**
+     * Merged rather than replaced: Owlbear only reports who is online, so each
+     * report is a slice of the room's history, never the whole of it.
+     */
+    case "players/seen": {
+      const byId = new Map(state.knownPlayers.map((player) => [player.id, player]));
+      for (const player of event.players) byId.set(player.id, player);
+      return { ...state, knownPlayers: [...byId.values()] };
+    }
 
     case "combatant/renamed":
       return updateCombatant(state, event.combatantId, (combatant) => ({
