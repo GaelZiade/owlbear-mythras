@@ -154,15 +154,20 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 /*
- * The toolbar is its own full-width row of four equal cells, with the combat
+ * The toolbar is its own full-width row of equal cells, with the combat
  * start/stop control kept up beside the readout because it is the one that
  * changes what the whole panel means. An earlier version crammed everything into
  * one line of differently sized buttons across two ragged rows, which read as an
  * accident rather than a control strip.
+ *
+ * The cells are sized to however many buttons there are rather than a fixed
+ * four: hardcoding four left the fifth alone on a second row, which was the
+ * same ragged look coming back by another route.
  */
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 4px;
 }
 
@@ -635,12 +640,59 @@ input[type="number"]::-webkit-inner-spin-button {
   border-color: var(--accent);
 }
 
+/*
+ * A panel section, not a footnote. It used to read as small print under the
+ * damage controls: same tiny label size as a caption, no grouping, and the
+ * owner dropdown — the one thing here that is not the character's own — sitting
+ * on top. Now the character's numbers come first under their own heading, and
+ * the table-level setting goes last under its own.
+ */
 .settings {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--line);
+  gap: 8px 6px;
+  margin-top: 10px;
+  padding: 10px 8px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.settings-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-off);
+}
+
+/* Fatigue moves one level at a time, so the buttons frame the name. */
+.fatigue-picker {
+  display: grid;
+  gap: 2px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stepper select {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+
+.stepper .step {
+  width: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  font-size: 15px;
+}
+
+.stepper .step:hover:not(:disabled) {
+  color: var(--text);
 }
 
 .settings label {
@@ -670,9 +722,12 @@ input[type="number"]::-webkit-inner-spin-button {
   gap: 6px;
 }
 
+/* Section heading inside the settings block, distinct from a field label. */
 .settings-caption {
   grid-column: 1 / -1;
+  margin-top: 2px;
   font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-dim);

@@ -190,18 +190,26 @@ const OBR = {
   player: {
     getRole: async () => (AS_PLAYER ? ("PLAYER" as const) : ("GM" as const)),
     getId: async () => AS_PLAYER?.id ?? "gm",
+    getName: async () => AS_PLAYER?.name ?? "GM",
+    getColor: async () => AS_PLAYER?.color ?? "#cccccc",
     getSelection: async () => SELECTION,
   },
   party: {
-    // A player needs to see a GM in the party, or the panel reports that nobody
-    // is connected to apply their changes.
-    getPlayers: async () =>
-      AS_PLAYER
-        ? [
-            ...PLAYERS,
-            { id: "gm", connectionId: "c-gm", role: "GM" as const, name: "GM", color: "#cccccc" },
-          ]
-        : PLAYERS,
+    /**
+     * Everyone *except* you, which is what the real API returns.
+     *
+     * This used to include the impersonated player in their own party, which is
+     * the opposite of Owlbear's behaviour and hid a real bug: the owner dropdown
+     * is built from this list, so a combatant owned by whoever was looking
+     * displayed as belonging to an "Absent player". A mock that is more generous
+     * than the thing it stands in for is worse than no mock.
+     */
+    getPlayers: async () => {
+      const GM = { id: "gm", connectionId: "c-gm", role: "GM" as const, name: "GM", color: "#cccccc" };
+      const everyone = [...PLAYERS, GM];
+      const selfId = AS_PLAYER?.id ?? "gm";
+      return everyone.filter((player) => player.id !== selfId);
+    },
     onChange: () => () => {},
   },
   scene: {

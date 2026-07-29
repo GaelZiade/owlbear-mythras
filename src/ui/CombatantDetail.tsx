@@ -2,7 +2,13 @@ import { useState } from "react";
 
 import { dispatch, type Session } from "../adapters/owlbear/store";
 import { effectiveInitiative, effectiveMaxActionPoints } from "../core/combat";
-import { FATIGUE_TABLE, fatigueRow, type FatigueLevel } from "../core/fatigue";
+import {
+  FATIGUE_TABLE,
+  fatigueRow,
+  recoverFatigue,
+  worsenFatigue,
+  type FatigueLevel,
+} from "../core/fatigue";
 import type { Combatant, HitLocation, WoundLevel } from "../core/types";
 import { applyHealing, previewDamage, woundLevel } from "../core/wounds";
 import { BodyDiagram } from "./BodyDiagram";
@@ -73,6 +79,9 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
   const fatigue = fatigueRow(combatant.fatigue);
   const selected = combatant.locations.find(({ id }) => id === selectedId) ?? null;
   const outcome = selected ? outcomeFor(selected, mode, amount, ignoreArmor) : null;
+
+  const setFatigue = (level: FatigueLevel) =>
+    dispatch({ type: "combatant/fatigueChanged", combatantId: combatant.id, fatigue: level });
 
   const apply = () => {
     if (!selected) return;
@@ -205,32 +214,7 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
       */}
       {editable && (
         <div className="settings">
-          {isGm && (
-            <label className="settings-wide">
-              Owner
-              <select
-                value={combatant.ownerId ?? ""}
-                onChange={(event) =>
-                  dispatch({
-                    type: "combatant/ownerChanged",
-                    combatantId: combatant.id,
-                    ownerId: event.target.value === "" ? undefined : event.target.value,
-                  })
-                }
-              >
-                <option value="">Unassigned (GM)</option>
-                {session.party.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name}
-                  </option>
-                ))}
-                {combatant.ownerId !== undefined &&
-                  !session.party.some((member) => member.id === combatant.ownerId) && (
-                    <option value={combatant.ownerId}>Absent player</option>
-                  )}
-              </select>
-            </label>
-          )}
+          <span className="settings-caption">Character</span>
 
           <label>
             Init. bonus
@@ -263,25 +247,46 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
             />
           </label>
 
-          <label className="settings-wide">
-            Fatigue
-            <select
-              value={fatigue.level}
-              onChange={(event) =>
-                dispatch({
-                  type: "combatant/fatigueChanged",
-                  combatantId: combatant.id,
-                  fatigue: event.target.value as FatigueLevel,
-                })
-              }
-            >
-              {FATIGUE_TABLE.map((row) => (
-                <option key={row.level} value={row.level}>
-                  {row.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/*
+            Stepped rather than picked. Fatigue moves one level at a time at the
+            table — a failed Endurance roll costs you one — so the common action
+            is a button, not hunting through ten options. The dropdown stays in
+            the middle for the rare jump, and to name the level you are on.
+          */}
+          <div className="settings-wide fatigue-picker">
+            <span className="settings-label">Fatigue</span>
+            <div className="stepper">
+              <button
+                type="button"
+                className="ghost step"
+                disabled={fatigue.level === "fresh"}
+                aria-label={`Recover a Fatigue level for ${combatant.name}`}
+                onClick={() => setFatigue(recoverFatigue(combatant.fatigue))}
+              >
+                −
+              </button>
+              <select
+                value={fatigue.level}
+                aria-label="Fatigue level"
+                onChange={(event) => setFatigue(event.target.value as FatigueLevel)}
+              >
+                {FATIGUE_TABLE.map((row) => (
+                  <option key={row.level} value={row.level}>
+                    {row.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="ghost step"
+                disabled={fatigue.level === "dead"}
+                aria-label={`Worsen Fatigue for ${combatant.name}`}
+                onClick={() => setFatigue(worsenFatigue(combatant.fatigue))}
+              >
+                +
+              </button>
+            </div>
+          </div>
 
           {/*
             The table's five columns, split by what this tracker can enforce.
@@ -397,6 +402,42 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
                 />
               </label>
             </div>
+          )}
+
+          {isGm && (
+            <>
+              <span className="settings-caption">Table</span>
+            <label className="settings-wide">
+              Owner
+              <select
+                value={combatant.ownerId ?? ""}
+                onChange={(event) =>
+                  dispatch({
+                    type: "combatant/ownerChanged",
+                    combatantId: combatant.id,
+                    ownerId: event.target.value === "" ? undefined : event.target.value,
+                  })
+                }
+              >
+                {/*
+                  "Unassigned" and picking yourself are not the same thing even
+                  though the GM can edit either: unassigned means nobody claimed
+                  it, which is what an NPC should read as. Labelling the first
+                  one "(GM)" made the two look like duplicates.
+                */}
+                <option value="">Unassigned</option>
+                {session.party.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.id === session.playerId ? `${member.name} (you)` : member.name}
+                  </option>
+                ))}
+                {combatant.ownerId !== undefined &&
+                  !session.party.some((member) => member.id === combatant.ownerId) && (
+                    <option value={combatant.ownerId}>Absent player</option>
+                  )}
+              </select>
+            </label>
+            </>
           )}
         </div>
       )}

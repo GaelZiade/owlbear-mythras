@@ -31,6 +31,8 @@ export interface Session {
   state: CombatState;
   role: "GM" | "PLAYER";
   playerId: string;
+  /** Whoever is asking, as a party member. `null` before the session connects. */
+  self: PartyMember | null;
   /** Other connected players, for assigning who controls which combatant. */
   party: PartyMember[];
   /** False when no GM is connected: nobody can apply changes. */
@@ -54,6 +56,7 @@ let session: Session = {
   state: createEmptyState(),
   role: "PLAYER",
   playerId: "",
+  self: null,
   party: [],
   gmPresent: false,
   canUndo: false,
@@ -173,8 +176,24 @@ function readState(metadata: Record<string, unknown>): CombatState {
   return migrate(metadata[COMBAT_METADATA_KEY]);
 }
 
-function toPartyMembers(players: ReadonlyArray<{ id: string; name: string; color: string }>): PartyMember[] {
-  return players.map(({ id, name, color }) => ({ id, name, color }));
+/**
+ * The party, including whoever is asking.
+ *
+ * `OBR.party.getPlayers()` returns *other* players and leaves you out, which is
+ * why `gmPresent` below has to short-circuit on your own role. Left alone, that
+ * omission reached the interface: a token the GM created is owned by the GM, the
+ * GM was never in this list, and so their own combatant displayed as belonging
+ * to an "Absent player" and could not be reassigned to themselves.
+ *
+ * Self is put first because it is the answer most of the time.
+ */
+function toPartyMembers(
+  players: ReadonlyArray<{ id: string; name: string; color: string }>,
+  self: PartyMember | null,
+): PartyMember[] {
+  const others = players.map(({ id, name, color }) => ({ id, name, color }));
+  if (!self || others.some((member) => member.id === self.id)) return others;
+  return [self, ...others];
 }
 
 /**
@@ -182,18 +201,23 @@ function toPartyMembers(players: ReadonlyArray<{ id: string; name: string; color
  * Must be called inside `OBR.onReady`.
  */
 export async function connect(): Promise<() => void> {
-  const [role, playerId, metadata, players] = await Promise.all([
+  const [role, playerId, playerName, playerColor, metadata, players] = await Promise.all([
     OBR.player.getRole(),
     OBR.player.getId(),
+    OBR.player.getName(),
+    OBR.player.getColor(),
     OBR.room.getMetadata(),
     OBR.party.getPlayers(),
   ]);
 
+  const self: PartyMember = { id: playerId, name: playerName, color: playerColor };
+
   setSession({
     role,
     playerId,
+    self,
     state: readState(metadata),
-    party: toPartyMembers(players),
+    party: toPartyMembers(players, self),
     gmPresent: role === "GM" || players.some((player) => player.role === "GM"),
     ready: true,
   });
@@ -208,7 +232,7 @@ export async function connect(): Promise<() => void> {
     }),
     OBR.party.onChange((updated) => {
       setSession({
-        party: toPartyMembers(updated),
+        party: toPartyMembers(updated, session.self),
         gmPresent: session.role === "GM" || updated.some((player) => player.role === "GM"),
       });
     }),
