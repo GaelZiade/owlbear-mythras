@@ -248,17 +248,30 @@ export async function connect(): Promise<() => void> {
     ready: true,
   });
 
-  // Only the GM writes, so only the GM records who has been in the room. A
-  // player's client would have the request rejected anyway.
+  /**
+   * Records who has been in the room, on a real party change only.
+   *
+   * This used to also run once during `connect`, and that was a write on load —
+   * the single most dangerous thing this module can do. `getMetadata` can answer
+   * before the room has settled; `readState` turns that into an empty fight; and
+   * the write then cemented the empty fight over the real one. Everything went:
+   * the roster, the wounds, the imported sheets. It looked like nothing was
+   * persisting, when in fact the load was destroying what had persisted.
+   *
+   * Nothing is written until a user does something, or the party genuinely
+   * changes — by which point the room has certainly loaded, because its own
+   * events are what woke us.
+   */
   const rememberPlayers = (seen: ReadonlyArray<{ id: string; name: string }>) => {
     if (session.role !== "GM") return;
+    // A write still in flight means `session.state` is mid-change; adding to it
+    // now would race the reducer.
+    if (hasUnsettledWrites()) return;
     const players = [self, ...seen].map(({ id, name }) => ({ id, name }));
     const known = new Set(session.state.knownPlayers.map((player) => player.id));
     if (players.every((player) => known.has(player.id))) return;
     dispatch({ type: "players/seen", players });
   };
-
-  rememberPlayers(players);
 
   const unsubscribers = [
     OBR.room.onMetadataChange((updated) => {

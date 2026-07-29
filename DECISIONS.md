@@ -428,6 +428,30 @@ surfaces share it, because a module variable gave the second page an empty room
 and made a working window look broken. Third time the harness has been widened
 to stop it being more forgiving than Owlbear.
 
+### 5g. Never write on load
+
+The worst bug this project has had, and it presented as the opposite of what it
+was. `connect()` read the room once and then immediately wrote, to record who
+was in the party. When that read answered before the room had settled it produced
+an empty fight — and the write cemented the empty fight over the real one.
+
+Everything went: the roster, the wounds, the imported sheets, the token links.
+It looked like nothing was persisting. In fact persistence was working and the
+*load* was destroying what had persisted, which is why it only showed up on a
+refresh and why the roll window — a second surface reading the same room — found
+nothing to roll.
+
+**Rule: nothing is written during connect.** Not a migration, not a
+normalisation, not a "while we are here". Writes happen when a user does
+something, or when the room's own events wake us — by which point the room has
+certainly loaded, because its events are the proof.
+
+Two supports for it. `rememberPlayers` refuses to run while a write is in flight,
+so it cannot race the reducer. And the roll window distinguishes an empty roster
+from a missing combatant: only a roster with somebody *else* in it proves this
+one is gone, so a window that renders before the room answers waits instead of
+announcing a loss.
+
 ## 6. Open questions
 
 1. **The real Owlbear metadata size limit.** Not stated in the public docs and

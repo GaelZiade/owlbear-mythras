@@ -287,3 +287,64 @@ describe("migrating to version 3", () => {
     expect(migrated.knownPlayers).toEqual([]);
   });
 });
+
+describe("never writing on load", () => {
+  /**
+   * The worst failure this project has had. `connect` read the room once and
+   * then wrote, to record who was in the party. When that read answered before
+   * the room had settled it produced an empty fight, and the write cemented it:
+   * roster, wounds and imported sheets all gone. It presented as "nothing
+   * persists", when in truth the load was destroying what had persisted.
+   *
+   * The engine cannot stop a caller writing at the wrong moment, so this pins
+   * the property the caller depends on: recording players is a change to an
+   * existing state, never a reason to replace one.
+   */
+  it("keeps the fight when players are recorded", () => {
+    const fight = play(
+      createEmptyState(),
+      { type: "combatants/added", combatants: [makeCombatant({ id: "a", tokenId: "t" })] },
+      { type: "location/damaged", combatantId: "a", locationId: "chest", amount: 3 },
+    );
+
+    const after = play(fight, {
+      type: "players/seen",
+      players: [{ id: "player-1", name: "Juan" }],
+    });
+
+    expect(after.combatants).toHaveLength(1);
+    const chest = after.combatants[0]!.locations.find(({ id }) => id === "chest")!;
+    expect(chest.hitPoints).toBe(chest.maxHitPoints - 3);
+  });
+
+  it("does not invent a roster when told about players on an empty state", () => {
+    const empty = play(createEmptyState(), {
+      type: "players/seen",
+      players: [{ id: "player-1", name: "Juan" }],
+    });
+    expect(empty.combatants).toEqual([]);
+    expect(empty.knownPlayers).toHaveLength(1);
+  });
+});
+
+describe("damage surviving a round trip through the room", () => {
+  /** What a reload does: serialise, migrate back, and expect the wounds intact. */
+  it("keeps wounds through serialisation and migration", () => {
+    const fight = play(
+      createEmptyState(),
+      { type: "combatants/added", combatants: [makeCombatant({ id: "a", tokenId: "t" })] },
+      { type: "location/damaged", combatantId: "a", locationId: "chest", amount: 4 },
+      { type: "location/damaged", combatantId: "a", locationId: "head", amount: 2 },
+    );
+
+    const reloaded = migrate(JSON.parse(JSON.stringify(fight)));
+    const byId = Object.fromEntries(
+      reloaded.combatants[0]!.locations.map((l) => [l.id, l.hitPoints]),
+    );
+    const maxes = Object.fromEntries(
+      reloaded.combatants[0]!.locations.map((l) => [l.id, l.maxHitPoints]),
+    );
+    expect(byId.chest).toBe(maxes.chest! - 4);
+    expect(byId.head).toBe(maxes.head! - 2);
+  });
+});

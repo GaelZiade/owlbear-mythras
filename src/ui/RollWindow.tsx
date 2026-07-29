@@ -69,7 +69,21 @@ export function RollWindow({ combatantId }: Props) {
   const combatant: Combatant | undefined = session.state.combatants.find(
     ({ id }) => id === combatantId,
   );
-  if (!combatant) return <p className="notice">That combatant is no longer in the fight.</p>;
+
+  /*
+   * An empty roster is not the same as a missing combatant. This window opens as
+   * its own iframe and reads the room for itself, so it can render before the
+   * room has answered — and saying "no longer in the fight" then is both wrong
+   * and alarming. Only a roster that has somebody else in it proves this one is
+   * really gone.
+   */
+  if (!combatant) {
+    return session.state.combatants.length === 0 ? (
+      <p className="notice">Reading the fight…</p>
+    ) : (
+      <p className="notice">That combatant is no longer in the fight.</p>
+    );
+  }
 
   const skills = combatant.skills ?? [];
   if (skills.length === 0) return <p className="notice">{combatant.name} has no skills on file.</p>;
