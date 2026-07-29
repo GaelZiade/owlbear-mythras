@@ -2,7 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 
 import { reduce, type CombatEvent } from "../../core/combat";
 import { createEmptyState, type CombatState } from "../../core/types";
-import { migrate } from "./migrations";
+import { decodeState, encodedSize, encodeState, METADATA_LIMIT_BYTES } from "./codec";
 import {
   COMBAT_METADATA_KEY,
   isCombatRequest,
@@ -108,7 +108,7 @@ async function flushWrites(): Promise<void> {
     while (pendingWrite) {
       const next = pendingWrite;
       pendingWrite = null;
-      await OBR.room.setMetadata({ [COMBAT_METADATA_KEY]: next });
+      await OBR.room.setMetadata({ [COMBAT_METADATA_KEY]: encodeState(next) });
       if (session.writeError !== null) setSession({ writeError: null });
     }
   } finally {
@@ -130,6 +130,21 @@ async function flushWrites(): Promise<void> {
  * about it and the person at the keyboard can.
  */
 function persist(state: CombatState): void {
+  /*
+   * Checked here rather than relying on the write to fail, because it does not
+   * fail in a way we can catch: Owlbear reports "over size limit of 16 kB" from
+   * its own message handler, so the promise we await never rejects and the panel
+   * carries on as though the room had accepted it. Measuring first is the only
+   * way to know, and it turns a silent total loss into a sentence.
+   */
+  const size = encodedSize(state);
+  if (size > METADATA_LIMIT_BYTES) {
+    setSession({
+      writeError: `${(size / 1024).toFixed(1)} kB of ${METADATA_LIMIT_BYTES / 1024} kB — Owlbear will refuse this. Remove a combatant`,
+    });
+    return;
+  }
+
   pendingWrite = state;
   void flushWrites().catch((cause: unknown) => {
     const detail = cause instanceof Error ? cause.message : String(cause);
@@ -199,7 +214,7 @@ async function handlePlayerRequest(event: { data: unknown; connectionId: string 
 }
 
 function readState(metadata: Record<string, unknown>): CombatState {
-  return migrate(metadata[COMBAT_METADATA_KEY]);
+  return decodeState(metadata[COMBAT_METADATA_KEY]);
 }
 
 /**

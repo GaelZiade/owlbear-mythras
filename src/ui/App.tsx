@@ -215,7 +215,7 @@ export function App() {
       */}
       {writeError && (
         <p className="notice notice-alert">
-          Not saved to the room: {writeError}. A reload will lose what is on screen.
+          Not saved: {writeError}. A reload will lose what is on screen.
         </p>
       )}
       {hint && <p className="notice notice-hint">{hint}</p>}

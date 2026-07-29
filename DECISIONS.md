@@ -428,6 +428,38 @@ surfaces share it, because a module variable gave the second page an empty room
 and made a working window look broken. Third time the harness has been widened
 to stop it being more forgiving than Owlbear.
 
+### 5f-bis. Owlbear caps room metadata at 16 kB, and says so where we cannot hear it
+
+The console settled what three rounds of guessing had not:
+
+> `Unable to update metadata: over size limit of 16 kB`
+
+Room metadata **does** persist. It is capped, hard, and a write past the cap is
+refused outright — and Owlbear reports it from its own message handler, not by
+rejecting the promise we await. So the `catch` added in §5e never fired, the
+panel carried on showing state the room had never accepted, and every reload put
+back the last write that fit. A party with imported sheets was permanently over,
+which is why *nothing* seemed to save.
+
+Two changes.
+
+**The state is packed.** JSON spends the budget badly: a skill is four repeated
+keys and a character has thirty of them, so skills and hit locations alone were
+2.7 kB of a 3.0 kB character. Those two arrays now travel as tuples and
+everything else keeps its shape — 3033 bytes to 1033, and six characters with
+archived sheets from 36 kB to 12.5. Packing the whole combatant positionally
+would save a little more and be much easier to get wrong; the two big arrays are
+where the money is. `CombatState` is untouched: this is a wire format, not a
+model. Rooms written before it still load.
+
+**The size is checked before the write, not after.** Since the failure cannot be
+caught, the only way to know is to measure, and refusing a doomed write turns a
+silent total loss into a sentence naming the number.
+
+Recorded because it constrains everything after it: the room holds about six
+characters with skills. Anything that grows what a combatant stores has to be
+weighed against that.
+
 ### 5g. Never write on load
 
 The worst bug this project has had, and it presented as the opposite of what it
@@ -469,9 +501,8 @@ being a second victim of any persistence problem.
 
 ## 6. Open questions
 
-1. **The real Owlbear metadata size limit.** Not stated in the public docs and
-   `docs.owlbear.rodeo` blocks automated reads. Needs measuring before T4 is
-   considered settled.
+1. ~~**The real Owlbear metadata size limit.**~~ **Answered: 16 kB**, by the SDK
+   itself refusing a write. See §5f-bis.
 2. **Token deleted mid-combat** (a consequence of F3). Today the combatant stays
    in the list with a `tokenId` pointing at nothing.
 3. **The Delay action.** The rules let a character hold an action to react later.
