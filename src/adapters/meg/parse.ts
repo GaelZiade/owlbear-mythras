@@ -11,12 +11,14 @@ import type { Combatant, HitLocation } from "../../core/types";
  * (DECISIONS §5), so a field going missing must degrade the import rather than
  * throw somewhere up in React. Anything unparseable is reported, not guessed at.
  *
- * What is deliberately dropped: characteristics, skills, spells, cults, spirits
- * and combat styles. This is a combat tracker — it models initiative, Action
- * Points and Hit Points by location, and nothing else. MEG's own numbers are
- * final, so we never re-derive them from STR/CON via §1.4. `notes` is kept
- * because for many entries the mechanics live there ("Rabble", "***Total 5
- * Hitpoints***", ability descriptions) rather than in the statblock.
+ * Skills and combat styles are kept, as final percentages. They were dropped on
+ * the first pass as "not modelled by the engine", which was true and beside the
+ * point: without them a GM cannot roll the creature they have just imported.
+ *
+ * What is still dropped: characteristics, spells, cults and spirits. MEG's own
+ * numbers are final, so we never re-derive anything from STR/CON via §1.4.
+ * `notes` is kept because for many entries the mechanics live there ("Rabble",
+ * "***Total 5 Hitpoints***", ability descriptions) rather than in the statblock.
  */
 
 export interface MegIndexEntry {
@@ -34,6 +36,8 @@ export interface MegCreature {
   hit_locations: { name: string; range: string; hp: number; ap: number }[];
   attributes: { action_points?: number; strike_rank?: string; movement?: string };
   notes?: string;
+  /** Percentages, already rolled. Combat styles are flagged so they sort apart. */
+  skills: { name: string; value: number; combatStyle: boolean }[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -197,11 +201,46 @@ export function parseCreatures(payload: unknown): ParseResult<MegCreature[]> {
         ...(typeof attributes.movement === "string" ? { movement: attributes.movement } : {}),
       },
       ...(typeof raw.notes === "string" ? { notes: raw.notes } : {}),
+      skills: skillsFromCreature(raw),
     });
   }
 
   if (creatures.length === 0) problems.push("No creatures in the payload.");
   return { value: creatures, problems };
+}
+
+/**
+ * Skills and combat styles out of a rolled creature.
+ *
+ * MEG writes skills as an array of single-key objects — `[{"Athletics": 46}]` —
+ * and combat styles as records with a `name` and a `value`. Both are already
+ * final percentages, so unlike the sheet builder there is nothing to compute.
+ *
+ * These were dropped on the first pass as "not modelled", which was true of the
+ * engine and wrong for the table: without them a GM cannot roll the creature
+ * they just imported.
+ */
+function skillsFromCreature(raw: Record<string, unknown>): MegCreature["skills"] {
+  const skills: MegCreature["skills"] = [];
+
+  if (Array.isArray(raw.skills)) {
+    for (const entry of raw.skills) {
+      if (!isRecord(entry)) continue;
+      for (const [name, value] of Object.entries(entry)) {
+        if (typeof value === "number") skills.push({ name, value, combatStyle: false });
+      }
+    }
+  }
+
+  if (Array.isArray(raw.combat_styles)) {
+    for (const style of raw.combat_styles) {
+      if (!isRecord(style) || typeof style.name !== "string") continue;
+      if (typeof style.value !== "number") continue;
+      skills.push({ name: style.name, value: style.value, combatStyle: true });
+    }
+  }
+
+  return skills.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -258,6 +297,14 @@ export function combatantFromCreature(
   const actionPoints = Math.max(0, maxActionPoints ?? 1);
 
   const notes = creature.notes?.trim();
+  const skills = (creature.skills ?? []).map(({ name, value, combatStyle }) => ({
+    name,
+    value,
+    // MEG does not label a creature's skills basic or professional, and for a
+    // creature the distinction does not do anything: they are what it has.
+    professional: false,
+    combatStyle,
+  }));
 
   return {
     value: {
@@ -270,6 +317,7 @@ export function combatantFromCreature(
       locations,
       defeated: false,
       ...(notes ? { notes } : {}),
+      ...(skills.length > 0 ? { skills } : {}),
     },
     problems,
   };

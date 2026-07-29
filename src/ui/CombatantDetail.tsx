@@ -18,8 +18,8 @@ import type { Combatant, HitLocation, WoundLevel } from "../core/types";
 import { applyHealing, previewDamage, woundLevel } from "../core/wounds";
 import { BodyDiagram } from "./BodyDiagram";
 import { CharacteristicsPanel } from "./Characteristics";
-import { RollDialog } from "./RollDialog";
 import { sceneTokens } from "../adapters/owlbear/tokens";
+import { openRollWindow } from "../adapters/owlbear/windows";
 
 const DIFFICULTY_LABEL: Record<string, string> = {
   none: "—",
@@ -82,7 +82,6 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
   const [mode, setMode] = useState<Mode>("damage");
   const [amount, setAmount] = useState(1);
   const [ignoreArmor, setIgnoreArmor] = useState(false);
-  const [rolling, setRolling] = useState(false);
   const [tokens, setTokens] = useState<{ id: string; name: string }[]>([]);
 
   const isGm = session.role === "GM";
@@ -307,7 +306,7 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
             <button
               type="button"
               className="settings-wide roll-open"
-              onClick={() => setRolling(true)}
+              onClick={() => void openRollWindow(combatant.id, combatant.name)}
             >
               Roll a skill
               <span className="dim">{combatant.skills!.length}</span>
@@ -624,7 +623,6 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
           )}
         </div>
       )}
-      {rolling && <RollDialog combatant={combatant} onClose={() => setRolling(false)} />}
     </div>
   );
 }

@@ -99,9 +99,36 @@ describe("working out a skill from its formula", () => {
     expect(guardian.combatStyle).toBe(true);
   });
 
-  it("keeps professional skills flagged", () => {
-    expect(jon.skills.find(({ name }) => name === "Lockpicking")!.professional).toBe(true);
+  it("keeps a trained professional skill, flagged as one", () => {
+    // Survival has 15 career points spent on it.
+    const survival = jon.skills.find(({ name }) => name === "Survival")!;
+    expect(survival.professional).toBe(true);
+    expect(survival.value).toBe(38);
     expect(jon.skills.find(({ name }) => name === "Athletics")!.professional).toBe(false);
+  });
+
+  /**
+   * The builder exports every professional skill in the game on every sheet, at
+   * base value with nothing spent. In Mythras an untrained professional skill is
+   * one the character does not have, and they were four fifths of what got
+   * stored — enough to push a party past the room's metadata limit.
+   */
+  it("drops professional skills nobody trained", () => {
+    expect(jon.skills.find(({ name }) => name === "Lockpicking")).toBeUndefined();
+    expect(jon.skills.find(({ name }) => name === "Seduction")).toBeUndefined();
+  });
+
+  it("keeps every basic skill, trained or not", () => {
+    expect(jon.skills.find(({ name }) => name === "Boating")).toBeDefined();
+    expect(jon.skills.find(({ name }) => name === "Sing")).toBeDefined();
+  });
+
+  it("keeps combat styles whether or not they look trained", () => {
+    expect(jon.skills.find(({ name }) => name === "Guardian")!.combatStyle).toBe(true);
+  });
+
+  it("cuts the stored list to what the character actually has", () => {
+    expect(jon.skills.length).toBeLessThan(40);
   });
 
   it("scores an unknown Characteristic as zero rather than throwing", () => {

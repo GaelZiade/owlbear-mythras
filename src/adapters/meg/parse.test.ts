@@ -267,3 +267,49 @@ describe("payloads that are not creatures at all", () => {
     expect(value).toHaveLength(1);
   });
 });
+
+describe("a creature's own skills", () => {
+  it("reads MEG's array of single-key objects", () => {
+    const byName = Object.fromEntries(vinkolt.skills.map((s) => [s.name, s.value]));
+    expect(byName.Athletics).toBe(46);
+    expect(byName.Endurance).toBe(65);
+    expect(byName.Willpower).toBe(64);
+  });
+
+  it("brings the combat styles across, flagged", () => {
+    const style = vinkolt.skills.find(({ name }) => name === "Dragon Queen Raider")!;
+    expect(style.value).toBe(49);
+    expect(style.combatStyle).toBe(true);
+  });
+
+  it("puts them on the combatant so the roll dialog can see them", () => {
+    const { value } = combatantFromCreature(vinkolt, "c-1");
+    expect(value!.skills).toBeDefined();
+    expect(value!.skills!.length).toBe(vinkolt.skills.length);
+    expect(value!.skills!.some(({ combatStyle }) => combatStyle)).toBe(true);
+  });
+
+  it("leaves skills off entirely when a creature has none", () => {
+    const bare = parseCreatures([
+      {
+        name: "Blank",
+        hit_locations: [{ name: "Body", range: "01-20", hp: 4, ap: 0 }],
+        attributes: { action_points: 2, strike_rank: "8" },
+      },
+    ]).value![0]!;
+    expect(bare.skills).toEqual([]);
+    expect(combatantFromCreature(bare, "c-1").value!.skills).toBeUndefined();
+  });
+
+  it("ignores a skill whose value is not a number", () => {
+    const odd = parseCreatures([
+      {
+        name: "Odd",
+        hit_locations: [{ name: "Body", range: "01-20", hp: 4, ap: 0 }],
+        attributes: {},
+        skills: [{ Athletics: 40 }, { Broken: "lots" }],
+      },
+    ]).value![0]!;
+    expect(odd.skills).toEqual([{ name: "Athletics", value: 40, combatStyle: false }]);
+  });
+});

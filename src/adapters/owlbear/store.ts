@@ -39,6 +39,13 @@ export interface Session {
   gmPresent: boolean;
   /** Whether there is a previous state to step back to. GM only. */
   canUndo: boolean;
+  /**
+   * Set when the last write to the room was refused, cleared when one lands.
+   *
+   * Non-null means the panel and the room disagree and a reload will lose
+   * whatever is on screen.
+   */
+  writeError: string | null;
   ready: boolean;
 }
 
@@ -60,6 +67,7 @@ let session: Session = {
   party: [],
   gmPresent: false,
   canUndo: false,
+  writeError: null,
   ready: false,
 };
 
@@ -101,15 +109,33 @@ async function flushWrites(): Promise<void> {
       const next = pendingWrite;
       pendingWrite = null;
       await OBR.room.setMetadata({ [COMBAT_METADATA_KEY]: next });
+      if (session.writeError !== null) setSession({ writeError: null });
     }
   } finally {
     writing = false;
   }
 }
 
+/**
+ * Queues a write and reports whether it landed.
+ *
+ * The rejection used to be discarded — `void flushWrites()` with no catch — and
+ * that hid the worst failure this extension can have. Owlbear caps how much a
+ * room's metadata can hold, and an over-large write is refused; the panel went
+ * on showing local state that the room had never accepted, so everything looked
+ * right until a reload put the last successfully saved state back. Losing an
+ * imported character that way is silent and total.
+ *
+ * A failed write now says so, loudly, because there is nothing this code can do
+ * about it and the person at the keyboard can.
+ */
 function persist(state: CombatState): void {
   pendingWrite = state;
-  void flushWrites();
+  void flushWrites().catch((cause: unknown) => {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    setSession({ writeError: detail });
+    pendingWrite = null;
+  });
 }
 
 /** True while our own writes are still settling, so incoming echoes are stale. */

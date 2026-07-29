@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+
+import { useSession } from "./useSession";
 
 import { fatigueRow } from "../core/fatigue";
 import {
@@ -13,15 +15,19 @@ import {
 import type { Combatant } from "../core/types";
 
 /**
- * Rolling a skill, in a dialog over the panel.
+ * Rolling a skill, in a window of its own.
  *
- * A dialog rather than another accordion in the sidebar. Owlbear's panel is
- * narrow and already carries the statblock, the damage controls and the
- * character's numbers; a sixty-skill list folded into that is one section too
- * many. Rolling is also a moment rather than a setting — you open it, throw, and
- * close.
+ * This is a separate Owlbear surface opened with `OBR.modal`, not a panel
+ * component. A dialog rendered inside the panel is still trapped in the panel's
+ * width, and the panel is a narrow column already carrying a body diagram, a
+ * statblock, the damage controls and the character's numbers. Floating it frees
+ * the skill list to be a list rather than a cramped dropdown.
  *
- * Everything here is a read of `core/rolls.ts`. The dialog picks the skill and
+ * It reads the combatant from the room by id rather than being handed one,
+ * because an iframe cannot be passed props. That also means it stays in step if
+ * the sheet changes while the window is open.
+ *
+ * Everything here is a read of `core/rolls.ts`. The window picks the skill and
  * the grade, shows what the target works out to *before* the die is thrown, and
  * reports what happened. Nothing is graded in this file.
  *
@@ -38,8 +44,7 @@ const OUTCOME_LABEL: Record<RollResult["outcome"], string> = {
 };
 
 interface Props {
-  combatant: Combatant;
-  onClose: () => void;
+  combatantId: string;
 }
 
 /**
@@ -52,25 +57,22 @@ interface Props {
  */
 const METHOD: ModifierMethod = "multiplier";
 
-export function RollDialog({ combatant, onClose }: Props) {
-  const skills = combatant.skills ?? [];
+export function RollWindow({ combatantId }: Props) {
+  const session = useSession();
   const [query, setQuery] = useState("");
-  const [skillName, setSkillName] = useState(() => skills[0]?.name ?? "");
+  const [skillName, setSkillName] = useState<string | null>(null);
   const [grade, setGrade] = useState<DifficultyGrade>("standard");
   const [result, setResult] = useState<RollResult | null>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
 
-  // Escape closes, as any dialog should.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    closeRef.current?.focus();
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  if (!session.ready) return <p className="notice">Connecting…</p>;
 
-  if (skills.length === 0) return null;
+  const combatant: Combatant | undefined = session.state.combatants.find(
+    ({ id }) => id === combatantId,
+  );
+  if (!combatant) return <p className="notice">That combatant is no longer in the fight.</p>;
+
+  const skills = combatant.skills ?? [];
+  if (skills.length === 0) return <p className="notice">{combatant.name} has no skills on file.</p>;
 
   const skill = skills.find(({ name }) => name === skillName) ?? skills[0]!;
 
@@ -89,20 +91,11 @@ export function RollDialog({ combatant, onClose }: Props) {
   );
 
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div
-        className="dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Roll a skill for ${combatant.name}`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="dialog-head">
-          <h2>{combatant.name}</h2>
-          <button type="button" className="ghost" ref={closeRef} onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </div>
+    // No backdrop and no close button: Owlbear draws the window frame and its
+    // own dismiss control, so drawing a second one would be a fake inside a real.
+    <div className="roll-window">
+      <div>
+        <h2 className="roll-title">{combatant.name}</h2>
 
         {/* Sixty skills is too many to scroll past; typing two letters is not. */}
         <input

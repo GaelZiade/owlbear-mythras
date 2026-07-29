@@ -152,14 +152,32 @@ export function parseSheet(payload: unknown): SheetParseResult {
   }
 
   const skills: SheetSkill[] = [];
+
+  /**
+   * Untrained professional skills are dropped.
+   *
+   * The builder exports every professional skill in the game on every sheet, at
+   * its base value and with nothing spent on it. In Mythras a professional skill
+   * you have not trained is one you do not have, so those are not the
+   * character's — and they were most of what got stored. Jon Snow carries 65
+   * entries of which 37 are that; keeping them cost four fifths of the room's
+   * metadata budget for skills nobody will ever roll.
+   *
+   * Basic skills are always kept: everyone has them, trained or not.
+   */
+  const isTrained = (raw: Record<string, unknown>) =>
+    num(raw.cultureBonus) + num(raw.careerBonus) + num(raw.extraBonus) > 0;
+
   const collect = (list: unknown, combatStyle: boolean) => {
     if (!Array.isArray(list)) return;
     for (const raw of list) {
       if (!isRecord(raw) || typeof raw.name !== "string") continue;
+      const professional = raw.professional === true;
+      if (professional && !combatStyle && !isTrained(raw)) continue;
       skills.push({
         name: raw.name,
         value: skillValue(raw, characteristics),
-        professional: raw.professional === true,
+        professional,
         combatStyle,
       });
     }

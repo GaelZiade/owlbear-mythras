@@ -116,10 +116,46 @@ function seededFight(): CombatState {
   };
 }
 
-let roomMetadata: Record<string, unknown> = AS_PLAYER
-  ? { [COMBAT_METADATA_KEY]: seededFight() }
-  : {};
+/**
+ * Room metadata, shared across surfaces through localStorage.
+ *
+ * Owlbear opens each surface as its own iframe reading the same room from the
+ * server, so the roll window sees the fight the panel is showing. Held in a
+ * module variable this stub could not do that: a second page loaded a fresh
+ * copy and found an empty room, which made the roll window look broken when it
+ * was only the mock being narrower than the thing it stands in for.
+ */
+const MOCK_STORAGE_KEY = "rodeo.owlbear.mythras/mock-room";
+
+function readStoredMetadata(): Record<string, unknown> | null {
+  try {
+    const raw = window.localStorage.getItem(MOCK_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredMetadata(metadata: Record<string, unknown>): void {
+  try {
+    window.localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(metadata));
+  } catch {
+    // Private browsing, or over quota. The session still works in one tab.
+  }
+}
+
+let roomMetadata: Record<string, unknown> =
+  readStoredMetadata() ?? (AS_PLAYER ? { [COMBAT_METADATA_KEY]: seededFight() } : {});
 const metadataListeners = new Set<(metadata: Record<string, unknown>) => void>();
+
+// Changes made in another surface arrive here, the way the real host pushes them.
+window.addEventListener("storage", (event) => {
+  if (event.key !== MOCK_STORAGE_KEY) return;
+  const updated = readStoredMetadata();
+  if (!updated) return;
+  roomMetadata = updated;
+  for (const listener of metadataListeners) listener(roomMetadata);
+});
 
 /**
  * Stands in for the GM's client receiving a player's request.
@@ -137,6 +173,7 @@ function applyAsAbsentGm(data: unknown): void {
   if (!isEventAllowedForPlayer(data.event as CombatEvent, AS_PLAYER.id, current)) return;
 
   roomMetadata = { ...roomMetadata, [COMBAT_METADATA_KEY]: reduce(current, data.event) };
+  writeStoredMetadata(roomMetadata);
   for (const listener of metadataListeners) listener(roomMetadata);
 }
 
@@ -182,6 +219,7 @@ const OBR = {
     getMetadata: async () => roomMetadata,
     setMetadata: async (update: Record<string, unknown>) => {
       roomMetadata = { ...roomMetadata, ...update };
+      writeStoredMetadata(roomMetadata);
       for (const listener of metadataListeners) listener(roomMetadata);
     },
     onMetadataChange: (callback: (metadata: Record<string, unknown>) => void) => {
@@ -195,6 +233,16 @@ const OBR = {
     getName: async () => AS_PLAYER?.name ?? "GM",
     getColor: async () => AS_PLAYER?.color ?? "#cccccc",
     getSelection: async () => SELECTION,
+  },
+  /**
+   * Owlbear opens each surface as its own iframe; the mock has one page, so it
+   * says what it would have done instead of pretending to float a window.
+   */
+  modal: {
+    open: async (modal: { url: string }) => {
+      window.open(modal.url, "_blank", "width=420,height=560");
+    },
+    close: async () => {},
   },
   party: {
     /**

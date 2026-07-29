@@ -393,6 +393,41 @@ which is far kinder than the floor requested, with a Refresh button for the day
 somebody adds a creature and wants it immediately. The reasoning is in
 `meg/client.ts`; the ten minutes is a floor, not a target.
 
+### 5e. Failed writes were silent, and that lost characters
+
+`persist()` fired `void flushWrites()` with no catch, so a rejected write to the
+room metadata was discarded entirely. The panel went on showing local state the
+room had never accepted; everything looked right until a reload put the last
+successfully saved state back. An imported character vanished, silently and
+completely, and the name reverted to the token's.
+
+Two changes. The rejection is now caught and shown as an alert, because there is
+nothing the code can do about it and the person at the keyboard can. And the
+payload was cut roughly in half: the sheet builder exports **every professional
+skill in the game** on every sheet, at base value with nothing spent, and in
+Mythras an untrained professional skill is one the character does not have. Jon
+Snow carried 65 entries of which 37 were that. Dropping them took a character
+from 5.7 KB to 3.0 KB, and a party of four with archived sheets from 46 KB to 24.
+
+Basic skills are always kept — everyone has those — and so are combat styles.
+
+### 5f. The roll window is its own Owlbear surface
+
+Rolling started as an accordion in the panel, then a dialog over it. Both were
+wrong for the same reason: an overlay rendered inside the panel is still bounded
+by the panel's width, and the panel is a narrow column already carrying a body
+diagram, a statblock, the damage controls and the character's numbers.
+
+`OBR.modal.open` floats a surface over the whole Owlbear canvas. That makes it a
+second HTML entry point rather than a component, since Owlbear loads every
+surface as its own iframe — which is also why the combatant travels in the URL
+and the window reads the room itself.
+
+The mock had to grow for this: room metadata moved to localStorage so two
+surfaces share it, because a module variable gave the second page an empty room
+and made a working window look broken. Third time the harness has been widened
+to stop it being more forgiving than Owlbear.
+
 ## 6. Open questions
 
 1. **The real Owlbear metadata size limit.** Not stated in the public docs and

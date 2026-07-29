@@ -23,7 +23,7 @@ export function App() {
   const [hint, setHint] = useState<string | null>(null);
   const [showNotices, setShowNotices] = useState(false);
   const [showMeg, setShowMeg] = useState(false);
-  const { state, role, gmPresent, canUndo, ready } = session;
+  const { state, role, gmPresent, canUndo, ready, writeError } = session;
   const isGm = role === "GM";
 
   if (!ready) {
@@ -207,6 +207,16 @@ export function App() {
 
       {!gmPresent && (
         <p className="notice notice-alert">No GM connected — changes will not apply.</p>
+      )}
+      {/*
+        Louder than a hint, because what is on screen is not what the room has:
+        a reload will discard it. Usually the room's metadata limit, which an
+        imported character with a long skill list can reach.
+      */}
+      {writeError && (
+        <p className="notice notice-alert">
+          Not saved to the room: {writeError}. A reload will lose what is on screen.
+        </p>
       )}
       {hint && <p className="notice notice-hint">{hint}</p>}
 

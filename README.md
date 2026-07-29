@@ -22,8 +22,9 @@ initiative by Cycles, Action Points, and wounds by hit location.
 - **Damage preview** before you commit: how many points would remain, what wound
   it would cause, and how much the armor absorbed.
 - **Import from the Mythras Enemy Generator**: search the catalogue by name,
-  race or tag and roll however many you need. The catalogue is fetched once and
-  searched locally, so typing costs the site nothing.
+  race or tag and roll however many you need, with their skills and combat
+  styles. The catalogue is fetched once and searched locally, so typing costs
+  the site nothing.
 - **Characteristics and derived Attributes** as Imperative defines them: enter
   the seven, and the Initiative Bonus, Action Points, Damage Modifier, Magic and
   Luck Points, Healing Rate, Experience Modifier and Hit Points per location all
@@ -33,7 +34,8 @@ initiative by Cycles, Action Points, and wounds by hit location.
   skill and combat style worked out from its formula.
 - **Link a combatant to a token** so an imported character follows the token its
   player moves, and a redrawn token finds its sheet again.
-- **Roll a skill** in a dialog, against any of the eight difficulty grades, with
+- **Roll a skill** in a floating window of its own, against any of the eight
+  difficulty grades, with
   criticals, fumbles and the automatic success and failure ranges applied.
   Fatigue raises the grade on its own.
 - **Sheets survive leaving the fight.** Remove somebody from the tracker and add

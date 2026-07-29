@@ -106,6 +106,8 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           tracker: "index.html",
+          // The roll window is opened with OBR.modal and is its own iframe.
+          roll: "roll.html",
         },
       },
     },
