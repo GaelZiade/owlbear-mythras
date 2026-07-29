@@ -253,7 +253,7 @@ are binding on this project, and one of them **invalidates the plan above**:
 | --- | --- |
 | No scraping the site "in any form" | — |
 | No "large amounts of requests"; the site is small computewise | — |
-| No "creating databases from major contents of the site" | **Kills the index prefetch.** `index_json/` is 4,867 entries and ~2.9 MB — the whole catalogue, per user. Whatever it is called, downloading it is building a database of the major contents |
+| No "creating databases from major contents of the site" | **Unresolved for the index.** See below |
 | No commercial charge; tips or Patreon for hosting costs are fine | The extension stays free. It already is |
 | No iOS or Android apps | Web only. Not currently a temptation, but it binds any future port |
 | Mythras and Chaosium notices visible in the tool | `src/ui/Notices.tsx`, reachable by GM and players alike |
@@ -270,13 +270,20 @@ they are not negotiable by the MEG author either.
 1. **Never vendor the data into this repository.** MEG content is authored by
    third parties and includes licensed settings material. Unchanged, and now
    doubly so.
-2. **One request per creature the user actually asked for.** No catalogue
-   prefetch, no background sync, no local mirror of the index. If browsing needs
-   a catalogue, the catalogue is not ours to hold.
-3. **Treat the endpoints as undocumented.** No versioning, no stability promise.
+2. **One request per creature the user actually asked for.** No background sync,
+   no speculative fetching, nothing the user did not ask for by name.
+3. **The index is an open question, not a settled one.** The chosen design is a
+   search box over creature names, which needs the catalogue: either
+   `index_json/` once per user and cached, or a server-side search endpoint if
+   MEG has one. Downloading an index of *names and ids* is arguably not
+   "creating a database from major contents" — the contents are the statblocks,
+   which stay on the server and are fetched one at a time — but that reading is
+   ours, not the author's, and 2.9 MB per user is real load on a small server.
+   **Ask before implementing.** Recorded as open question §6.8.
+4. **Treat the endpoints as undocumented.** No versioning, no stability promise.
    The importer must degrade gracefully when they change or disappear, and must
    never be on the panel's critical path.
-4. **Prefer a file the user already has.** MEG JSON the user exports themselves
+5. **Prefer a file the user already has.** MEG JSON the user exports themselves
    costs the site nothing and is explicitly permitted. That is the safest import
    path and should be the one that always works, with any live fetch as an
    addition rather than the foundation.
@@ -303,3 +310,10 @@ they are not negotiable by the MEG author either.
    forced marches, swimming and holding your breath are all outside a combat
    tracker's knowledge. `worsenFatigue` and `recoverFatigue` exist for a future
    caller; today the level is always set by hand.
+8. **May the MEG index be fetched and cached?** (§5). The chosen import design is
+   a search box over creature names, which needs the catalogue. Reading
+   `index_json/` once per user and caching it is either fine — it is names and
+   ids, published as JSON, while the statblocks stay on the server — or it is the
+   "database from major contents" the author ruled out. The author has been
+   responsive and this is a question for them, not for us to interpret. Blocks
+   the search UI; nothing else.
