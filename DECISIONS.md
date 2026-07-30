@@ -458,7 +458,44 @@ silent total loss into a sentence naming the number.
 
 Recorded because it constrains everything after it: the room holds about six
 characters with skills. Anything that grows what a combatant stores has to be
-weighed against that.
+weighed against that. **Superseded by §5f-ter**, which lifts that constraint.
+
+### 5f-ter. Packing bought six characters; the fight needs fifty
+
+12.5 kB of 16 is not headroom, it is luck. Measured, the *eighth* imported
+character crosses the ceiling — and it would cross it mid-session, during a big
+fight, which is exactly when nobody can do anything about it. A limit you have
+to ration is a limit that will be hit.
+
+So the packed object is deflated and base64'd before it is written. Measured
+with every number varied, so identical copies do not flatter the compressor:
+
+| characters | packed JSON | deflated + base64 |
+| ---------- | ----------- | ----------------- |
+| 6          | 12 998      | 2 224             |
+| 8          | 17 282 ✗    | 2 620             |
+| 20         | 43 026 ✗    | 5 088             |
+| 50         | 107 380 ✗   | 9 096             |
+
+Fifty full sheets in 9 kB. The budget stops being something to design around.
+
+**Why deflate and not a cleverer format.** A shared string table for skill names
+was the obvious hand-rolled alternative and buys roughly 1.5×; deflate buys 12×,
+because the repetition it exploits is everywhere, not only in the names. Writing
+less clever code that wins by an order of magnitude is not a hard trade.
+
+**Why no dependency.** `CompressionStream` is in the browser already. Where it is
+missing the packed object is written exactly as before — those rooms keep the old
+budget rather than failing — and the smaller of the two encodings always wins, so
+a fight of three stays legible in the room metadata and only a big one turns into
+base64.
+
+**What it cost.** Decoding is asynchronous now, which opens a gap between the
+metadata arriving and the state being ready. Two changes in quick succession can
+finish out of order, so reads carry a ticket and a superseded one drops its
+result; the in-flight-write check is repeated after the await, not only before
+it. The size check stays despite fifty sheets fitting: the failure it guards
+against is silent and total, and the guard costs nothing.
 
 ### 5g. Never write on load
 
@@ -502,7 +539,8 @@ being a second victim of any persistence problem.
 ## 6. Open questions
 
 1. ~~**The real Owlbear metadata size limit.**~~ **Answered: 16 kB**, by the SDK
-   itself refusing a write. See §5f-bis.
+   itself refusing a write, and no longer a practical constraint: fifty full
+   character sheets now fit in 9 kB. See §5f-bis and §5f-ter.
 2. **Token deleted mid-combat** (a consequence of F3). Today the combatant stays
    in the list with a `tokenId` pointing at nothing.
 3. **The Delay action.** The rules let a character hold an action to react later.

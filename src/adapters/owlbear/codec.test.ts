@@ -4,7 +4,16 @@ import { combatantFromSheet, parseSheet } from "../sheet/parse";
 import jonSnow from "../sheet/fixtures/jon-snow.json";
 import { buildLocations, HUMANOID_PROFILE } from "../../core/locations";
 import { createEmptyState, type CombatState } from "../../core/types";
-import { decodeState, encodedSize, encodeState, METADATA_LIMIT_BYTES } from "./codec";
+import {
+  decodeFromRoom,
+  decodeState,
+  encodeForRoom,
+  encodeState,
+  METADATA_LIMIT_BYTES,
+  payloadSize,
+} from "./codec";
+
+const encodedSize = (state: CombatState) => payloadSize(encodeState(state));
 
 const jon = combatantFromSheet(parseSheet(jonSnow).value!, "c-jon");
 
@@ -47,6 +56,83 @@ describe("packing for the 16 kB ceiling", () => {
   it("spends its savings on skills and locations, which were the bulk", () => {
     const one = encodedSize({ ...createEmptyState(), combatants: [jon] });
     expect(one).toBeLessThan(1500);
+  });
+});
+
+/**
+ * A fight where no two sheets are alike.
+ *
+ * Copies of one character compress to almost nothing, which would make the
+ * numbers below a flattering lie. Every value is nudged instead, so what is
+ * measured is a real party rather than the compressor spotting a repeat.
+ */
+function variedFight(count: number): CombatState {
+  const state = fightWith(count);
+  const combatants = state.combatants.map((combatant, index) => ({
+    ...combatant,
+    name: `Combatant ${index} of ${count}`,
+    ...(combatant.skills
+      ? {
+          skills: combatant.skills.map((skill) => ({
+            ...skill,
+            value: skill.value + ((index * 7 + skill.name.length) % 23) - 11,
+          })),
+        }
+      : {}),
+    locations: combatant.locations.map((location) => ({
+      ...location,
+      hitPoints: Math.max(1, location.hitPoints - (index % 4)),
+    })),
+  }));
+  return {
+    ...state,
+    combatants,
+    characters: Object.fromEntries(combatants.map((c) => [c.tokenId!, c])),
+  };
+}
+
+describe("compressing for the ceiling", () => {
+  /**
+   * The number the compression exists for. Packed but uncompressed, the eighth
+   * imported character crosses 16 kB; a large fight would hit it mid-session,
+   * which is exactly when nobody can do anything about it.
+   */
+  it("fits a fight far larger than anyone will run", async () => {
+    const { size } = await encodeForRoom(variedFight(50));
+    expect(size).toBeLessThan(METADATA_LIMIT_BYTES);
+  });
+
+  it("leaves the budget mostly unspent at a realistic party size", async () => {
+    const { size } = await encodeForRoom(variedFight(8));
+    // Uncompressed this state is over the ceiling.
+    expect(encodedSize(variedFight(8))).toBeGreaterThan(METADATA_LIMIT_BYTES);
+    expect(size).toBeLessThan(METADATA_LIMIT_BYTES / 4);
+  });
+
+  it("returns the same fight it compressed", async () => {
+    const state = variedFight(12);
+    const { payload } = await encodeForRoom(state);
+    const back = await decodeFromRoom(payload);
+    expect(back.combatants).toHaveLength(12);
+    expect(back.combatants[5]!.skills).toEqual(state.combatants[5]!.skills);
+    expect(back.combatants[5]!.locations).toEqual(state.combatants[5]!.locations);
+    expect(Object.keys(back.characters)).toHaveLength(12);
+  });
+
+  it("writes a small fight uncompressed, since deflating it would cost bytes", async () => {
+    const { payload } = await encodeForRoom(createEmptyState());
+    expect(payload).toHaveProperty("wire");
+  });
+
+  it("reads a packed state that was never compressed", async () => {
+    const state = fightWith(2);
+    const back = await decodeFromRoom(encodeState(state));
+    expect(back.combatants).toHaveLength(2);
+  });
+
+  it("returns an empty fight rather than throwing on a corrupt payload", async () => {
+    const back = await decodeFromRoom({ z: 5, d: "not base64 deflate" });
+    expect(back.combatants).toEqual([]);
   });
 });
 

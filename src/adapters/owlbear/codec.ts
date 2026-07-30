@@ -21,11 +21,43 @@ import { migrate } from "./migrations";
  * whole combatant positionally would save a little more and would be much easier
  * to get wrong; the two big arrays are where the money is.
  *
+ * **Packing alone was not enough.** 12.5 kB of 16 is not headroom, it is luck:
+ * two more characters and a big fight would hit the ceiling mid-session, which
+ * is precisely when nobody can do anything about it. Measured, the eighth
+ * imported character crosses it.
+ *
+ * So the packed object is then deflated and base64'd. Same measurement, with
+ * every number varied so identical copies do not flatter the compressor:
+ *
+ * | characters | packed JSON | deflated + base64 |
+ * | ---------- | ----------- | ----------------- |
+ * | 6          | 12 998      | 2 224             |
+ * | 8          | 17 282 ✗    | 2 620             |
+ * | 20         | 43 026 ✗    | 5 088             |
+ * | 50         | 107 380 ✗   | 9 096             |
+ *
+ * Fifty full character sheets fit in 9 kB. The ceiling stops being something to
+ * think about, which was the point.
+ *
+ * The compressor is the browser's own `CompressionStream`, so this costs no
+ * dependency. Where it is missing the packed object is written as it was before
+ * — smaller rooms still work, they just get the old budget. The smaller of the
+ * two is always what is written, so a fight of three stays legible in the room
+ * metadata and only a big one turns into base64.
+ *
  * `CombatState` itself is unchanged. This is a wire format, not a model.
  */
 
 /** Wire version. Separate from `SCHEMA_VERSION`, which versions the model. */
 const WIRE_VERSION = 4;
+
+/** Envelope version for a deflated payload. Bumped independently of `wire`. */
+const COMPRESSED_VERSION = 5;
+
+interface CompressedEnvelope {
+  z: number;
+  d: string;
+}
 
 type PackedSkill = [name: string, value: number, flags: number];
 type PackedLocation = [
@@ -186,7 +218,121 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** Owlbear's own ceiling. Writing past it is refused, not truncated. */
 export const METADATA_LIMIT_BYTES = 16 * 1024;
 
-/** Bytes a state would occupy, so a doomed write can be refused before it is sent. */
-export function encodedSize(state: CombatState): number {
-  return new TextEncoder().encode(JSON.stringify(encodeState(state))).length;
+/** Bytes a payload occupies in the metadata, counted the way the limit counts. */
+export function payloadSize(payload: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(payload)).length;
+}
+
+/**
+ * Runs bytes through a compression stream.
+ *
+ * Written against `CompressionStream` alone rather than `Blob`/`Response`, so
+ * the only thing that has to exist is the transform itself.
+ */
+async function pump(
+  transform: TransformStream<BufferSource, Uint8Array>,
+  input: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array> {
+  const writer = transform.writable.getWriter();
+  // Not awaited before reading: a stream can fill its buffer and block the
+  // write until somebody drains the other end, so awaiting here would deadlock.
+  const written = writer.write(input).then(() => writer.close());
+  // A corrupt payload fails at both ends at once. The read below is what
+  // reports it; marking this one handled stops the same failure from also
+  // escaping as an unhandled rejection, which no `catch` around this call
+  // would ever see. `await written` further down still rethrows it.
+  void written.catch(() => undefined);
+
+  const chunks: Uint8Array[] = [];
+  const reader = transform.readable.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  await written;
+
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return bytes;
+}
+
+const CHUNK = 0x8000;
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = "";
+  // In chunks because `String.fromCharCode(...bytes)` spreads every byte into an
+  // argument, and a big fight would overflow the call stack.
+  for (let index = 0; index < bytes.length; index += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + CHUNK));
+  }
+  return btoa(binary);
+}
+
+function fromBase64(text: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(text);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+function canCompress(): boolean {
+  return typeof CompressionStream !== "undefined" && typeof DecompressionStream !== "undefined";
+}
+
+/**
+ * What actually goes into the room metadata, and what it costs.
+ *
+ * The caller gets the size back because the only way to know a write will be
+ * accepted is to measure the thing being written: Owlbear refuses an oversized
+ * write from its own message handler, so the promise never rejects and nothing
+ * downstream ever hears about it.
+ */
+export async function encodeForRoom(
+  state: CombatState,
+): Promise<{ payload: unknown; size: number }> {
+  const packed = encodeState(state);
+  const plainSize = payloadSize(packed);
+  if (!canCompress()) return { payload: packed, size: plainSize };
+
+  try {
+    const json = new TextEncoder().encode(JSON.stringify(packed));
+    const deflated = await pump(new CompressionStream("deflate-raw"), json);
+    const envelope: CompressedEnvelope = { z: COMPRESSED_VERSION, d: toBase64(deflated) };
+    const size = payloadSize(envelope);
+    // A short fight compresses to more than it started as; there is no reason to
+    // make the room metadata unreadable for a loss.
+    return size < plainSize ? { payload: envelope, size } : { payload: packed, size: plainSize };
+  } catch {
+    return { payload: packed, size: plainSize };
+  }
+}
+
+function isCompressed(raw: unknown): raw is CompressedEnvelope {
+  return isRecord(raw) && raw.z === COMPRESSED_VERSION && typeof raw.d === "string";
+}
+
+/**
+ * Reads whatever the room holds: deflated, packed, or the verbose shape from
+ * before either existed.
+ *
+ * A payload that cannot be inflated returns an empty fight rather than throwing.
+ * Throwing here would leave the panel stuck on "Connecting…", and a fight nobody
+ * can see is no better than one that is gone.
+ */
+export async function decodeFromRoom(raw: unknown): Promise<CombatState> {
+  if (!isCompressed(raw)) return decodeState(raw);
+  if (!canCompress()) return migrate(null);
+
+  try {
+    const inflated = await pump(new DecompressionStream("deflate-raw"), fromBase64(raw.d));
+    return decodeState(JSON.parse(new TextDecoder().decode(inflated)));
+  } catch {
+    return migrate(null);
+  }
 }

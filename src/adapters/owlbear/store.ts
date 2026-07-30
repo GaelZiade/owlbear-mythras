@@ -2,7 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 
 import { reduce, type CombatEvent } from "../../core/combat";
 import { createEmptyState, type CombatState } from "../../core/types";
-import { decodeState, encodedSize, encodeState, METADATA_LIMIT_BYTES } from "./codec";
+import { decodeFromRoom, encodeForRoom, METADATA_LIMIT_BYTES } from "./codec";
 import {
   COMBAT_METADATA_KEY,
   isCombatRequest,
@@ -108,7 +108,24 @@ async function flushWrites(): Promise<void> {
     while (pendingWrite) {
       const next = pendingWrite;
       pendingWrite = null;
-      await OBR.room.setMetadata({ [COMBAT_METADATA_KEY]: encodeState(next) });
+
+      /*
+       * Measured rather than attempted, because an oversized write does not fail
+       * in a way we can catch: Owlbear reports "over size limit of 16 kB" from
+       * its own message handler, so the promise we await never rejects and the
+       * panel carries on as though the room had accepted it. Compression puts
+       * this far out of reach — fifty character sheets fit — but the check stays,
+       * since the failure it guards against is silent and total.
+       */
+      const { payload, size } = await encodeForRoom(next);
+      if (size > METADATA_LIMIT_BYTES) {
+        setSession({
+          writeError: `${(size / 1024).toFixed(1)} kB of ${METADATA_LIMIT_BYTES / 1024} kB — Owlbear will refuse this. Remove a combatant`,
+        });
+        continue;
+      }
+
+      await OBR.room.setMetadata({ [COMBAT_METADATA_KEY]: payload });
       if (session.writeError !== null) setSession({ writeError: null });
     }
   } finally {
@@ -130,21 +147,6 @@ async function flushWrites(): Promise<void> {
  * about it and the person at the keyboard can.
  */
 function persist(state: CombatState): void {
-  /*
-   * Checked here rather than relying on the write to fail, because it does not
-   * fail in a way we can catch: Owlbear reports "over size limit of 16 kB" from
-   * its own message handler, so the promise we await never rejects and the panel
-   * carries on as though the room had accepted it. Measuring first is the only
-   * way to know, and it turns a silent total loss into a sentence.
-   */
-  const size = encodedSize(state);
-  if (size > METADATA_LIMIT_BYTES) {
-    setSession({
-      writeError: `${(size / 1024).toFixed(1)} kB of ${METADATA_LIMIT_BYTES / 1024} kB — Owlbear will refuse this. Remove a combatant`,
-    });
-    return;
-  }
-
   pendingWrite = state;
   void flushWrites().catch((cause: unknown) => {
     const detail = cause instanceof Error ? cause.message : String(cause);
@@ -213,8 +215,29 @@ async function handlePlayerRequest(event: { data: unknown; connectionId: string 
   applyAsGm(event.data.event);
 }
 
-function readState(metadata: Record<string, unknown>): CombatState {
-  return decodeState(metadata[COMBAT_METADATA_KEY]);
+function readState(metadata: Record<string, unknown>): Promise<CombatState> {
+  return decodeFromRoom(metadata[COMBAT_METADATA_KEY]);
+}
+
+/**
+ * Adopts what the room holds, unless something newer has happened since.
+ *
+ * Decoding is asynchronous now that the payload is compressed, and that opens a
+ * gap between the metadata arriving and the state being ready. Two changes in
+ * quick succession can finish out of order, which would leave the panel showing
+ * the older of the two; the ticket makes a superseded decode drop its result.
+ */
+let latestRead = 0;
+
+function adopt(metadata: Record<string, unknown>): void {
+  const ticket = (latestRead += 1);
+  void readState(metadata).then((state) => {
+    if (ticket !== latestRead) return;
+    // Re-checked after the await, not only before it: a click during the decode
+    // makes the local state the newer one, and adopting the echo would undo it.
+    if (hasUnsettledWrites()) return;
+    setSession({ state });
+  });
 }
 
 /**
@@ -252,12 +275,14 @@ export async function connect(): Promise<() => void> {
   ]);
 
   const self: PartyMember = { id: playerId, name: playerName, color: playerColor };
+  const state = await readState(metadata);
+  latestRead += 1;
 
   setSession({
     role,
     playerId,
     self,
-    state: readState(metadata),
+    state,
     party: toPartyMembers(players, self),
     gmPresent: role === "GM" || players.some((player) => player.role === "GM"),
     ready: true,
@@ -294,7 +319,7 @@ export async function connect(): Promise<() => void> {
       // local state is the newer one, and adopting the echo would undo whatever
       // was clicked in the meantime.
       if (hasUnsettledWrites()) return;
-      setSession({ state: readState(updated) });
+      adopt(updated);
     }),
     OBR.party.onChange((updated) => {
       setSession({
