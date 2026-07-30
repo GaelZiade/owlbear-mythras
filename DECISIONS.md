@@ -542,34 +542,33 @@ being a second victim of any persistence problem.
    itself refusing a write, and no longer a practical constraint: fifty full
    character sheets now fit in 9 kB. See §5f-bis and §5f-ter.
 2. **Token deleted mid-combat** (a consequence of F3). Today the combatant stays
-   in the list with a `tokenId` pointing at nothing.
-3. **The Delay action.** The rules let a character hold an action to react later.
-   Not yet decided whether it belongs in phase 1.
-4. **Side initiative**, a common optional rule. Not decided.
+   in the list with a `tokenId` pointing at nothing. **Decided:** the link is
+   dropped, the combatant is not. A token vanishing is a remote event we did not
+   ask for, and deleting a combatant — with its wounds, its sheet and its owner —
+   because of one would destroy work nobody asked to destroy. The combatant stays,
+   unlinked, and says so, which is also recoverable: link it to a new token and it
+   carries on.
+3. ~~**The Delay action.**~~ **Dropped.** Mythras lets Action Points be spent
+   reactively at any moment, which is what Delay exists to allow in games that
+   count turns strictly — so the tracker already permits the thing, and holding a
+   turn changes nothing it records. Nothing to build.
+4. ~~**Side initiative.**~~ **Dropped**: not used at this table.
 5. **Inherited advisory**: `@owlbear-rodeo/sdk@3.1.0` depends on a `uuid` version
    with a moderate advisory. No fix available and it does not affect our usage.
-6. **Licensing of the Fatigue table** (§1.8). Partly narrowed: Imperative is
-   confirmed to carry the Characteristics, derived Attributes and skill roll
-   rules now implemented, so those are safely ORC. The Fatigue table itself was
-   not found in Imperative and remains the open part. If the table is core-only,
-   reproducing its values needs checking against T6 before release. The level
-   names and the two applied columns sit in `fatigue.ts` and would be the thing
-   to revisit; nothing else in the codebase depends on those numbers.
-7. **Which of the two Difficulty methods a table uses** (§1.9). Imperative
-   prints both and says to pick one and keep it, which makes it a decision about
-   the game rather than about a roll — so it does not belong in a control the
-   player meets every time they throw. Hard-coded to multiplying, the book's own
-   "normal method". If a table wants the flat percentages it needs to become a
-   room-level setting, not a dropdown in the roll dialog.
+6. ~~**Licensing of the Fatigue table** (§1.8).~~ **Closed: the table is in
+   *Mythras Imperative*, under ORC.** It was not found in the excerpt searched
+   here, which was the whole of the doubt. `fatigue.ts` stands as written and the
+   store listing carries no licensing risk from it.
+7. **Which of the two Difficulty methods a table uses** (§1.9). Imperative prints
+   both and says to pick one and keep it, which makes it a decision about the game
+   rather than about a roll — so it does not belong in a control the player meets
+   every time they throw. Hard-coded to multiplying, the book's own "normal
+   method". **Needs confirming:** the table reports using "el método porcentual"
+   while also saying the current code is right, and those are two different
+   methods. They diverge sharply at the ends — a skill of 65 at Herculean is 13
+   by multiplication and 0 flat. If the flat percentages are what is wanted, this
+   becomes a room-level setting rather than a dropdown.
 8. **Automatic Fatigue accrual.** The engine never raises a level on its own —
    forced marches, swimming and holding your breath are all outside a combat
    tracker's knowledge. `worsenFatigue` and `recoverFatigue` exist for a future
    caller; today the level is always set by hand.
-8. **Characteristics and derived attributes.** `tables.ts` can turn STR/CON/SIZ
-   and the rest into Action Points, Hit Points per location and the Initiative
-   Bonus, but only `hitPointsFor` is wired up — `actionPointsFor`,
-   `initiativeBonusFor` and `initiativePenaltyFor` are reachable from tests and
-   nowhere else, because nothing in the interface accepts characteristics. A
-   blank combatant therefore gets a hardcoded default rather than a derivation.
-   Whether to store characteristics is open; what is *not* open is re-deriving
-   over an imported creature's numbers, which are already final. See §5.
