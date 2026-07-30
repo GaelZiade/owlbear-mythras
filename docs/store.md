@@ -1,6 +1,6 @@
 ---
 title: Mythras Combat
-description: Initiative by Cycles, Action Points, and wounds tracked per hit location.
+description: Initiative by Cycles, Action Points, Fatigue and wounds tracked per hit location.
 author: Tutson
 image: https://raw.githubusercontent.com/GaelZiade/owlbear-mythras/main/docs/header.jpg
 icon: https://raw.githubusercontent.com/GaelZiade/owlbear-mythras/main/docs/icon.png
@@ -48,11 +48,64 @@ the armour absorbed.
 Creatures are not assumed to be humanoid. Locations are data, so tails, wings and
 forequarters fit the same model.
 
+## Characteristics, and everything derived from them
+
+Enter STR, CON, SIZ, DEX, INT, POW and CHA and the tracker works out the rest:
+Action Points, Initiative Bonus, Damage Modifier, Healing Rate, Experience
+Modifier, Luck Points and Hit Points per location. Change a Characteristic and
+every one of them follows.
+
+Nothing derived is typed by hand, so nothing can drift out of step. Where a
+character is not built from Characteristics — an imported creature, a quick
+NPC — a modifier field sits alongside each derived value, and the tracker adds
+the two rather than making you overwrite the calculation.
+
+The derivations follow *Mythras Imperative*, which gives every character a flat
+2 Action Points rather than banding them by INT and DEX.
+
+## Fatigue
+
+Ten levels, from Fresh down to Dead. The two the tracker can enforce are
+enforced: the Initiative penalty is folded into the order combatants act in, and
+the Action Point loss is applied to the maximum, so an Exhausted character gets
+fewer pips for the whole Round.
+
+The rest of the row — the difficulty grade for skills, the movement restriction,
+how long recovery takes — is shown rather than applied, since it belongs to
+rolls and travel the tracker does not resolve. The roll window reads the grade,
+so a tired character rolls at the right difficulty without anyone remembering to
+say so.
+
+## Rolling skills
+
+A floating window, not another thing crammed into the sidebar. It lists that
+character's own skills with a search filter, takes a Difficulty Grade from Very
+Easy to Herculean, and rolls d100 against the modified target.
+
+It reports the result the way the rules read it: critical, success, failure or
+fumble, with criticals worked out from one tenth of the *modified* target rather
+than the base one. Fatigue's grade is applied automatically.
+
+## Getting characters in
+
+Three ways, none of them retyping a sheet:
+
+- **From the Mythras Enemy Generator.** Search its catalogue by name and import
+  a creature with its Characteristics, hit locations, armour, skills and combat
+  styles already filled in.
+- **From a character sheet file.** Drop in the JSON a sheet builder exports.
+- **By hand**, for the NPC you invented thirty seconds ago.
+
+A combatant can be linked to a token on the map, and a linked character's sheet
+is kept when they leave the fight — bring the same token back later and their
+wounds, skills and Characteristics come back with them.
+
 ## At the table
 
 - Roll initiative for the tokens you have selected, so you can roll for your
   enemies while players roll their own
-- Players edit their own combatant's Action Points, Hit Points and initiative
+- Players edit their own combatant: Action Points, Hit Points, initiative,
+  Fatigue and damage
 - Mark someone out of the fight to skip them without removing them
 - Undo, right next to Next turn
 

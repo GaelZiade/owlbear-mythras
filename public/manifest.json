@@ -5,7 +5,7 @@
   "author": "Tutson",
   "homepage_url": "https://github.com/GaelZiade/owlbear-mythras",
   "icon": "/icon.svg",
-  "description": "Initiative by Cycles, Action Points and wounds by hit location for Mythras.",
+  "description": "Initiative by Cycles, Action Points, Fatigue and wounds by hit location for Mythras.",
   "action": {
     "title": "Mythras",
     "icon": "/icon.svg",
