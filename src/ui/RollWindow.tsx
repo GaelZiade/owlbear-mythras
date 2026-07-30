@@ -6,6 +6,7 @@ import {
   DIFFICULTY_TABLE,
   hardestGrade,
   modifiedSkill,
+  rollRanges,
   rollSkill,
   type DifficultyGrade,
   type ModifierMethod,
@@ -54,6 +55,12 @@ const OUTCOME_LABEL: Record<RollResult["outcome"], string> = {
  */
 const METHOD: ModifierMethod = "multiplier";
 
+/** The book writes 100 as "00", and so does the die everyone is holding. */
+const face = (roll: number) => (roll === 100 ? "00" : String(roll).padStart(2, "0"));
+
+const span = (range: readonly [number, number] | null) =>
+  range === null ? null : range[0] === range[1] ? face(range[0]) : `${face(range[0])}-${face(range[1])}`;
+
 export function RollWindow() {
   const [context] = useState(readRollContext);
   const [query, setQuery] = useState("");
@@ -76,6 +83,7 @@ export function RollWindow() {
   const fatigueGrade = context.fatigueGrade as DifficultyGrade | null;
   const applied = hardestGrade(fatigueGrade ? [grade, fatigueGrade] : [grade]);
   const target = modifiedSkill(skill.value, applied, METHOD);
+  const ranges = rollRanges(skill.value, applied, METHOD);
 
   const matches = skills.filter(({ name }) =>
     name.toLowerCase().includes(query.trim().toLowerCase()),
@@ -153,6 +161,26 @@ export function RollWindow() {
             {applied === "hopeless" ? " · cannot be attempted" : ""}
             {applied === "automatic" ? " · no roll needed" : ""}
           </span>
+        </p>
+
+        {/*
+          Both ranges before the throw, not after it.
+
+          The critical range moves with the difficulty — it is a tenth of the
+          *modified* target, so the same skill criticals on 13 or less when it is
+          doubled and on 2 or less at Herculean. Nobody works that out mid-fight,
+          and finding out afterwards is finding out too late to have chosen a
+          different grade.
+        */}
+        <p className="roll-ranges">
+          {ranges.critical ? (
+            <span className="roll-range roll-range-critical">crit {span(ranges.critical)}</span>
+          ) : (
+            <span className="roll-range dim">no critical</span>
+          )}
+          {ranges.fumble && (
+            <span className="roll-range roll-range-fumble">fumble {span(ranges.fumble)}</span>
+          )}
         </p>
 
         <button

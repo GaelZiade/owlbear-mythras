@@ -3,10 +3,16 @@ import { useEffect, useState } from "react";
 import { dispatch, type Session } from "../adapters/owlbear/store";
 import {
   baseMaxActionPoints,
+  canMakeDesperateEffort,
+  currentLuckPoints,
+  currentMagicPoints,
   effectiveInitiative,
   effectiveInitiativeBonus,
   effectiveMaxActionPoints,
+  effectiveMaxLuckPoints,
+  effectiveMaxMagicPoints,
 } from "../core/combat";
+import { deriveAttributes } from "../core/characteristics";
 import {
   FATIGUE_TABLE,
   fatigueRow,
@@ -43,6 +49,138 @@ interface Props {
 }
 
 type Mode = "damage" | "heal";
+
+/**
+ * Luck and Magic Points, and the Attributes worth reading mid-fight.
+ *
+ * Both pools are spendable and both replenish between sessions, so they are
+ * tracked rather than derived on the spot: *"Once a Luck Point is spent, the
+ * pool decreases… until the next game session."*
+ *
+ * The derived Attributes are here because they had nowhere else to be read. They
+ * were computed and displayed, but only inside the Characteristics *editor* —
+ * which meant a player wanting their Damage Modifier mid-fight had to open a
+ * form full of the numbers it comes from. Nothing here is editable; it is the
+ * sheet, printed.
+ */
+function Resources({ combatant, editable }: { combatant: Combatant; editable: boolean }) {
+  const maxLuck = effectiveMaxLuckPoints(combatant);
+  const maxMagic = effectiveMaxMagicPoints(combatant);
+  const derived = combatant.characteristics ? deriveAttributes(combatant.characteristics) : null;
+
+  // Nothing derived and no pools set: a plain combatant with no sheet behind it,
+  // where an empty block would be furniture.
+  if (maxLuck === 0 && maxMagic === 0 && !derived) return null;
+
+  const spend = (type: "luckPoints/changed" | "magicPoints/changed", delta: number) =>
+    dispatch({ type, combatantId: combatant.id, delta });
+
+  return (
+    <div className="resources">
+      {maxLuck > 0 && (
+        <div className="resource">
+          <span className="resource-name">Luck</span>
+          <span className="resource-value">
+            {currentLuckPoints(combatant)}
+            <span className="dim">/{maxLuck}</span>
+          </span>
+          {editable && (
+            <span className="resource-steps">
+              <button
+                type="button"
+                className="ghost step"
+                aria-label={`Spend a Luck Point for ${combatant.name}`}
+                disabled={currentLuckPoints(combatant) === 0}
+                onClick={() => spend("luckPoints/changed", -1)}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                className="ghost step"
+                aria-label={`Restore a Luck Point for ${combatant.name}`}
+                disabled={currentLuckPoints(combatant) === maxLuck}
+                onClick={() => spend("luckPoints/changed", 1)}
+              >
+                +
+              </button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {maxMagic > 0 && (
+        <div className="resource">
+          <span className="resource-name">Magic</span>
+          <span className="resource-value">
+            {currentMagicPoints(combatant)}
+            <span className="dim">/{maxMagic}</span>
+          </span>
+          {editable && (
+            <span className="resource-steps">
+              <button
+                type="button"
+                className="ghost step"
+                aria-label={`Spend a Magic Point for ${combatant.name}`}
+                disabled={currentMagicPoints(combatant) === 0}
+                onClick={() => spend("magicPoints/changed", -1)}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                className="ghost step"
+                aria-label={`Restore a Magic Point for ${combatant.name}`}
+                disabled={currentMagicPoints(combatant) === maxMagic}
+                onClick={() => spend("magicPoints/changed", 1)}
+              >
+                +
+              </button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {/*
+        Offered only when the rules allow it — out of Action Points, with a Luck
+        Point left and a maximum above zero. A button that is always there would
+        invite spending a point at full Action Points, where it buys a point over
+        the maximum that nothing will honour, or while Incapacitated, where the
+        Fatigue table takes it straight back.
+      */}
+      {editable && canMakeDesperateEffort(combatant) && (
+        <button
+          type="button"
+          className="desperate"
+          title="Spend a Luck Point for one Action Point"
+          onClick={() => dispatch({ type: "luck/desperateEffort", combatantId: combatant.id })}
+        >
+          Desperate Effort
+        </button>
+      )}
+
+      {derived && (
+        <dl className="resource-derived">
+          <div>
+            <dt>Damage mod.</dt>
+            <dd>{derived.damageModifier}</dd>
+          </div>
+          <div>
+            <dt>Healing rate</dt>
+            <dd>{derived.healingRate}</dd>
+          </div>
+          <div>
+            <dt>Exp. mod.</dt>
+            <dd>
+              {derived.experienceModifier >= 0 ? "+" : ""}
+              {derived.experienceModifier}
+            </dd>
+          </div>
+        </dl>
+      )}
+    </div>
+  );
+}
 
 interface Outcome {
   hitPointsAfter: number;
@@ -197,6 +335,8 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
           );
         })}
       </ul>
+
+      <Resources combatant={combatant} editable={editable} />
 
       {/*
         Three inputs and an outcome, in the order the decision is actually made:
@@ -364,6 +504,44 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
                   }
                 />
               </label>
+
+              {/*
+                The two pools, for the same reason: with no POW to derive from,
+                somebody has to say what they are. MEG fills Magic in on import
+                and leaves Luck at nothing, which is right — creatures do not
+                have Luck Points.
+              */}
+              <label>
+                Luck max
+                <input
+                  type="number"
+                  min={0}
+                  value={combatant.maxLuckPoints ?? 0}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "combatant/maxLuckPointsChanged",
+                      combatantId: combatant.id,
+                      maxLuckPoints: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+
+              <label>
+                Magic max
+                <input
+                  type="number"
+                  min={0}
+                  value={combatant.maxMagicPoints ?? 0}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "combatant/maxMagicPointsChanged",
+                      combatantId: combatant.id,
+                      maxMagicPoints: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
             </>
           )}
 
@@ -501,7 +679,7 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
                 </div>
                 <div>
                   <dt>Recovery</dt>
-                  <dd>{fatigue.recovery ?? "Never"}</dd>
+                  <dd>{fatigue.recovery ?? "—"}</dd>
                 </div>
               </dl>
               <p className="fatigue-note">Skills, movement and recovery are yours to apply.</p>

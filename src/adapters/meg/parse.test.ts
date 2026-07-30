@@ -313,3 +313,12 @@ describe("a creature's own skills", () => {
     expect(odd.skills).toEqual([{ name: "Athletics", value: 40, combatStyle: false }]);
   });
 });
+
+describe("Magic Points", () => {
+  it("imports the pool MEG prints, rather than deriving one", () => {
+    const { value } = combatantFromCreature(vinkolt, "c-1");
+    expect(value!.maxMagicPoints).toBe(15);
+    // No Characteristics, so nothing re-derives over the statblock.
+    expect(value!.characteristics).toBeUndefined();
+  });
+});

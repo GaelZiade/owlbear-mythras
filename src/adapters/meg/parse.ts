@@ -34,7 +34,12 @@ export interface MegIndexEntry {
 export interface MegCreature {
   name: string;
   hit_locations: { name: string; range: string; hp: number; ap: number }[];
-  attributes: { action_points?: number; strike_rank?: string; movement?: string };
+  attributes: {
+    action_points?: number;
+    strike_rank?: string;
+    movement?: string;
+    magic_points?: number;
+  };
   notes?: string;
   /** Percentages, already rolled. Combat styles are flagged so they sort apart. */
   skills: { name: string; value: number; combatStyle: boolean }[];
@@ -199,6 +204,9 @@ export function parseCreatures(payload: unknown): ParseResult<MegCreature[]> {
           ? { strike_rank: attributes.strike_rank }
           : {}),
         ...(typeof attributes.movement === "string" ? { movement: attributes.movement } : {}),
+        ...(typeof attributes.magic_points === "number"
+          ? { magic_points: attributes.magic_points }
+          : {}),
       },
       ...(typeof raw.notes === "string" ? { notes: raw.notes } : {}),
       skills: skillsFromCreature(raw),
@@ -316,6 +324,16 @@ export function combatantFromCreature(
       maxActionPoints: actionPoints,
       locations,
       defeated: false,
+      /*
+       * MEG prints Magic Points outright, and they are a pool the creature
+       * spends casting. It lands in `maxMagicPoints` rather than being derived,
+       * for the same reason its Action Points do: the statblock is final and we
+       * do not re-derive over it (DECISIONS §5). Creatures with no magic have no
+       * field, and the resource block stays off their sheet.
+       */
+      ...(creature.attributes.magic_points !== undefined
+        ? { maxMagicPoints: Math.max(0, creature.attributes.magic_points) }
+        : {}),
       ...(notes ? { notes } : {}),
       ...(skills.length > 0 ? { skills } : {}),
     },

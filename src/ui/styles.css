@@ -954,6 +954,102 @@ input[type="number"]::-webkit-inner-spin-button {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- luck, magic and the derived attributes ---------- */
+
+/*
+ * Sits with the hit locations rather than in the settings block, because these
+ * are read during a fight and the settings block is where things are set up
+ * once. The derived Attributes used to be legible only inside the
+ * Characteristics editor, which meant opening a form to read a number.
+ */
+.resources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px 8px;
+  border-radius: var(--r);
+  background: var(--bg);
+}
+
+.resource {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.resource-name {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-off);
+}
+
+.resource-value {
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.resource-steps {
+  display: flex;
+  gap: 2px;
+}
+
+.resource-steps .step {
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: var(--r);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.resource-steps .step:hover:not(:disabled) {
+  background: var(--raise);
+}
+
+/*
+ * Only on screen when the rules allow it, so it reads as an offer rather than a
+ * control: out of Action Points, with a Luck Point left to spend.
+ */
+.desperate {
+  padding: 4px 9px;
+  border-radius: var(--r);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: transparent;
+}
+
+.desperate:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.resource-derived {
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px 6px;
+  margin: 0;
+  padding-top: 5px;
+  border-top: 1px solid var(--line);
+}
+
+.resource-derived dt {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-off);
+}
+
+.resource-derived dd {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- characteristics ---------- */
 
 .chars {
@@ -1145,6 +1241,30 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
   font-size: 11px;
   color: var(--text-dim);
+}
+
+/*
+ * Both ranges before the throw, in the colours the outcomes use afterwards, so
+ * the number that lands is recognised rather than read.
+ */
+.roll-ranges {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.roll-range {
+  font-weight: 600;
+}
+
+.roll-range-critical {
+  color: var(--accent);
+}
+
+.roll-range-fumble {
+  color: var(--major);
 }
 
 /*

@@ -80,6 +80,28 @@ export interface Combatant {
   /** Adjustment to maximum Action Points, for effects that grant or cost one. */
   actionPointsModifier?: number;
   /**
+   * Luck Points remaining, absent meaning the pool is untouched.
+   *
+   * A spendable resource, not a derived one: *"Once a Luck Point is spent, the
+   * pool decreases… until the next game session when they replenish to their
+   * normal value."* The pool itself comes from POW and is never stored, so a
+   * corrected Characteristic still moves the maximum; only the spending is
+   * state. Absent rather than pre-filled so a fight saved by an earlier build
+   * loads with everybody at full, which is what they were.
+   */
+  luckPoints?: number;
+  /** Maximum Luck Points when there are no Characteristics to derive from. */
+  maxLuckPoints?: number;
+  /** Magic Points remaining, on the same rule as Luck Points. */
+  magicPoints?: number;
+  /**
+   * Maximum Magic Points when there are no Characteristics.
+   *
+   * Where MEG creatures land: they carry `magic_points` outright and no POW we
+   * are willing to re-derive from (DECISIONS §5).
+   */
+  maxMagicPoints?: number;
+  /**
    * Fatigue level, absent meaning Fresh.
    *
    * Optional rather than required so a fight saved by an earlier build still
@@ -177,6 +199,11 @@ export interface StoredCharacter {
   actionPointsModifier?: number;
   fatigue?: FatigueLevel;
   notes?: string;
+  /** Kept spent, for the same reason wounds are kept: a session does not reset. */
+  luckPoints?: number;
+  maxLuckPoints?: number;
+  magicPoints?: number;
+  maxMagicPoints?: number;
   /** Kept whole, wounds included: someone pulled out of a fight is still hurt. */
   locations: HitLocation[];
 }

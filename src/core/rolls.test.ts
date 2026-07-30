@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import { fatigueRow } from "./fatigue";
 import {
   criticalThreshold,
+  DIFFICULTY_GRADES,
   DIFFICULTY_TABLE,
   gradeRoll,
   hardestGrade,
   modifiedSkill,
+  rollRanges,
   rollSkill,
   type DifficultyGrade,
 } from "./rolls";
@@ -252,6 +254,49 @@ describe("rolling for real", () => {
       const { roll } = rollSkill(50, "standard", "multiplier", () => value);
       expect(roll).toBeGreaterThanOrEqual(1);
       expect(roll).toBeLessThanOrEqual(100);
+    }
+  });
+});
+
+describe("the ranges shown before the die", () => {
+  /**
+   * The critical range moves with the difficulty because it is a tenth of the
+   * *modified* target. That is the whole reason for showing it beforehand.
+   */
+  it("widens and narrows with the grade", () => {
+    expect(rollRanges(65, "very-easy").critical).toEqual([1, 13]);
+    expect(rollRanges(65, "standard").critical).toEqual([1, 7]);
+    expect(rollRanges(65, "herculean").critical).toEqual([1, 2]);
+  });
+
+  it("fumbles on 99-00, and on 00 alone past a target of 100", () => {
+    expect(rollRanges(65, "standard").fumble).toEqual([99, 100]);
+    // Exactly 100 is not "more than 100%", so 99 still fumbles.
+    expect(rollRanges(50, "very-easy").fumble).toEqual([99, 100]);
+    // Doubling 65 gives 130, which is.
+    expect(rollRanges(65, "very-easy").fumble).toEqual([100, 100]);
+  });
+
+  /** The two grades that are not rolls at all, handled without a special case. */
+  it("gives Hopeless no critical and Automatic no fumble", () => {
+    expect(rollRanges(65, "hopeless").critical).toBeNull();
+    expect(rollRanges(65, "automatic").fumble).toBeNull();
+  });
+
+  /**
+   * The point of deriving these from `gradeRoll` rather than restating its
+   * arithmetic: the two cannot disagree. This checks that they do not.
+   */
+  it("agrees with the roller it is derived from, at every grade", () => {
+    for (const grade of DIFFICULTY_GRADES) {
+      const { critical, fumble } = rollRanges(72, grade);
+      for (let roll = 1; roll <= 100; roll += 1) {
+        const { outcome } = gradeRoll(roll, 72, grade);
+        const inCritical = critical !== null && roll >= critical[0] && roll <= critical[1];
+        const inFumble = fumble !== null && roll >= fumble[0] && roll <= fumble[1];
+        expect(inCritical).toBe(outcome === "critical");
+        expect(inFumble).toBe(outcome === "fumble");
+      }
     }
   });
 });

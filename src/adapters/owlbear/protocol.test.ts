@@ -121,3 +121,41 @@ describe("recognising a request at all", () => {
     expect(isCombatRequest(payload)).toBe(false);
   });
 });
+
+describe("who may spend Luck and Magic Points", () => {
+  const state: CombatState = {
+    ...createEmptyState(),
+    combatants: [
+      combatant("mine", ALICE),
+      combatant("theirs", BOB),
+    ],
+  };
+
+  /**
+   * The book has the player decide to burn a Luck Point mid-action, so routing
+   * it through the GM would put a person in the way of a decision the rules
+   * already handed to the player.
+   */
+  it("lets a player spend their own", () => {
+    for (const event of [
+      { type: "luckPoints/changed", combatantId: "mine", delta: -1 },
+      { type: "magicPoints/changed", combatantId: "mine", delta: -3 },
+      { type: "luck/desperateEffort", combatantId: "mine" },
+    ] as const) {
+      expect(isEventAllowedForPlayer(event, ALICE, state)).toBe(true);
+    }
+  });
+
+  it("refuses somebody else's", () => {
+    expect(
+      isEventAllowedForPlayer(
+        { type: "luckPoints/changed", combatantId: "theirs", delta: -1 },
+        ALICE,
+        state,
+      ),
+    ).toBe(false);
+    expect(
+      isEventAllowedForPlayer({ type: "luck/desperateEffort", combatantId: "theirs" }, ALICE, state),
+    ).toBe(false);
+  });
+});

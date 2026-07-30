@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { currentTurn, reduce, turnStatus, type CombatEvent } from "./combat";
+import {
+  canMakeDesperateEffort,
+  currentLuckPoints,
+  currentMagicPoints,
+  currentTurn,
+  effectiveMaxLuckPoints,
+  effectiveMaxMagicPoints,
+  reduce,
+  turnStatus,
+  type CombatEvent,
+} from "./combat";
 import { rollInitiative } from "./dice";
 import { buildLocations, HUMANOID_PROFILE, locationForRoll } from "./locations";
 import { actionPointsFor, hitPointsFor, initiativeBonusFor, initiativePenaltyFor } from "./tables";
@@ -481,5 +491,132 @@ describe("setting Hit Points outright", () => {
       maxHitPoints: 0,
     });
     expect(chest(state).maxHitPoints).toBe(1);
+  });
+});
+
+describe("Luck and Magic Points", () => {
+  /** POW 15 gives 3 Luck Points and 15 Magic Points. */
+  const caster = makeCombatant({
+    id: "caster",
+    characteristics: { STR: 10, CON: 12, SIZ: 11, DEX: 13, INT: 14, POW: 15, CHA: 10 },
+  });
+
+  const withCaster = () => reduce(createEmptyState(), added(caster));
+
+  it("derives both pools from POW", () => {
+    const state = withCaster();
+    expect(effectiveMaxLuckPoints(find(state, "caster"))).toBe(3);
+    expect(effectiveMaxMagicPoints(find(state, "caster"))).toBe(15);
+  });
+
+  /**
+   * The field is absent until something is spent, so everybody in a fight saved
+   * before this existed reads as full rather than as having nothing left.
+   */
+  it("reads an untouched pool as full", () => {
+    const untouched = makeCombatant({ id: "plain", maxLuckPoints: 2 });
+    expect(untouched.luckPoints).toBeUndefined();
+    expect(currentLuckPoints(untouched)).toBe(2);
+  });
+
+  it("spends and restores, without passing either end", () => {
+    const spent = play(
+      withCaster(),
+      { type: "luckPoints/changed", combatantId: "caster", delta: -1 },
+      { type: "luckPoints/changed", combatantId: "caster", delta: -1 },
+    );
+    expect(currentLuckPoints(find(spent, "caster"))).toBe(1);
+
+    const drained = play(spent, { type: "luckPoints/changed", combatantId: "caster", delta: -5 });
+    expect(currentLuckPoints(find(drained, "caster"))).toBe(0);
+
+    const refilled = play(drained, { type: "luckPoints/changed", combatantId: "caster", delta: 9 });
+    expect(currentLuckPoints(find(refilled, "caster"))).toBe(3);
+  });
+
+  it("spends Magic Points down the larger pool", () => {
+    const cast = play(
+      withCaster(),
+      { type: "magicPoints/changed", combatantId: "caster", delta: -6 },
+    );
+    expect(currentMagicPoints(find(cast, "caster"))).toBe(9);
+  });
+
+  /**
+   * A corrected POW moves the maximum, and what is left has to move with it.
+   * Without the clamp a character whose POW dropped would keep points their
+   * sheet no longer says they have.
+   */
+  it("clamps what is left when the pool shrinks under it", () => {
+    const lowered = play(withCaster(), {
+      type: "combatant/characteristicsChanged",
+      combatantId: "caster",
+      characteristics: { STR: 10, CON: 12, SIZ: 11, DEX: 13, INT: 14, POW: 5, CHA: 10 },
+    });
+    // POW 5 gives one Luck Point, and three were in hand.
+    expect(currentLuckPoints(find(lowered, "caster"))).toBe(1);
+  });
+
+  it("keeps what has been spent when the combatant leaves and comes back", () => {
+    const linked = makeCombatant({ id: "caster", tokenId: "token-1", characteristics: caster.characteristics! });
+    const state = play(
+      reduce(createEmptyState(), added(linked)),
+      { type: "luckPoints/changed", combatantId: "caster", delta: -2 },
+      { type: "magicPoints/changed", combatantId: "caster", delta: -4 },
+      { type: "combatant/removed", combatantId: "caster" },
+      added(makeCombatant({ id: "caster-again", tokenId: "token-1" })),
+    );
+    const back = find(state, "caster-again");
+    expect(currentLuckPoints(back)).toBe(1);
+    expect(currentMagicPoints(back)).toBe(11);
+  });
+});
+
+describe("Desperate Effort", () => {
+  const hero = () =>
+    makeCombatant({
+      id: "hero",
+      characteristics: { STR: 10, CON: 12, SIZ: 11, DEX: 13, INT: 14, POW: 15, CHA: 10 },
+    });
+
+  const spent = () =>
+    play(reduce(createEmptyState(), added(hero())), {
+      type: "actionPoints/changed",
+      combatantId: "hero",
+      delta: -2,
+    });
+
+  it("buys one Action Point for one Luck Point", () => {
+    const state = play(spent(), { type: "luck/desperateEffort", combatantId: "hero" });
+    expect(find(state, "hero").actionPoints).toBe(1);
+    expect(currentLuckPoints(find(state, "hero"))).toBe(2);
+  });
+
+  /**
+   * The book offers it to a character who has "exhausted their Action Points".
+   * Allowed with points still in hand it would push the current total past the
+   * maximum, which nothing else here expects.
+   */
+  it("refuses while Action Points remain", () => {
+    const state = reduce(createEmptyState(), added(hero()));
+    expect(canMakeDesperateEffort(find(state, "hero"))).toBe(false);
+    const attempted = play(state, { type: "luck/desperateEffort", combatantId: "hero" });
+    expect(find(attempted, "hero").actionPoints).toBe(2);
+    expect(currentLuckPoints(find(attempted, "hero"))).toBe(3);
+  });
+
+  /** Incapacitated takes the maximum to zero, so the point bought would be clamped straight off. */
+  it("refuses when Fatigue has taken the maximum to nothing", () => {
+    const state = play(spent(), {
+      type: "combatant/fatigueChanged",
+      combatantId: "hero",
+      fatigue: "incapacitated",
+    });
+    expect(canMakeDesperateEffort(find(state, "hero"))).toBe(false);
+  });
+
+  it("refuses with no Luck Points left", () => {
+    const state = play(spent(), { type: "luckPoints/changed", combatantId: "hero", delta: -3 });
+    expect(canMakeDesperateEffort(find(state, "hero"))).toBe(false);
   });
 });

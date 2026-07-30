@@ -216,6 +216,46 @@ export function gradeRoll(
   };
 }
 
+export interface RollRanges {
+  /** Rolls that critical, inclusive. `null` when the grade allows none. */
+  critical: readonly [low: number, high: number] | null;
+  /** Rolls that fumble, inclusive. `null` when none. */
+  fumble: readonly [low: number, high: number] | null;
+}
+
+/**
+ * Which rolls critical and which fumble, for showing before the die is thrown.
+ *
+ * Derived by putting all hundred possible rolls through `gradeRoll` rather than
+ * by restating its rules. The arithmetic is small enough to have written out —
+ * a tenth of the target, 99-00 unless the target passes 100 — but writing it out
+ * would create a second description of the same rule, free to drift from the one
+ * that decides the actual outcome. Here they cannot disagree: this *is* that
+ * rule, asked a hundred questions.
+ *
+ * It also gets the edges right for nothing. Hopeless criticals on no roll at all
+ * and Automatic never fumbles, and neither needed a special case.
+ */
+export function rollRanges(
+  skill: number,
+  grade: DifficultyGrade = "standard",
+  method: ModifierMethod = "multiplier",
+): RollRanges {
+  const critical: number[] = [];
+  const fumble: number[] = [];
+
+  for (let roll = 1; roll <= 100; roll += 1) {
+    const { outcome } = gradeRoll(roll, skill, grade, method);
+    if (outcome === "critical") critical.push(roll);
+    if (outcome === "fumble") fumble.push(roll);
+  }
+
+  const span = (rolls: number[]): readonly [number, number] | null =>
+    rolls.length === 0 ? null : [rolls[0]!, rolls[rolls.length - 1]!];
+
+  return { critical: span(critical), fumble: span(fumble) };
+}
+
 /**
  * Rolls 1d100 and grades it. The only function here that touches a die.
  *

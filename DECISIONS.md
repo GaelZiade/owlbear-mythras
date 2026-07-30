@@ -157,6 +157,60 @@ this: the difficulty column of §1.8 was carried as data with nothing consuming
 it, and `hardestGrade` is now that consumer. An Exhausted character attempting
 something Hard rolls Formidable.
 
+### 1.9b The critical and fumble ranges are shown before the die
+
+Both ranges are on screen while the grade can still be changed, rather than
+appearing in the result.
+
+The critical range is the reason. It is a tenth of the *modified* target, so it
+moves with the difficulty: a skill of 51 criticals on 01-11 when it is doubled
+and on 01 alone at Herculean. Nobody works that out at the table, and learning it
+from the result is learning it after the choice it should have informed.
+
+`rollRanges` derives both by putting all hundred possible rolls through
+`gradeRoll` rather than restating its arithmetic. The arithmetic is two lines and
+that is exactly the trap: a second description of the same rule is free to drift
+from the one that decides the outcome, and the drift would show up as a window
+promising a critical the roller does not grant. Asking the real rule a hundred
+questions costs nothing and cannot disagree with itself. It also handles Hopeless
+and Automatic — no critical, no fumble — without either needing a special case.
+
+The success *percentage* is deliberately not shown. It was considered and
+dropped: knowing 65% is 65% adds nothing, while the two ranges are facts about
+this roll that are not obvious.
+
+### 1.10 Luck and Magic Points are tracked, not derived
+
+Source: Imperative, *Luck Points* and *Magic Points*. Both are pools that are
+spent and refill later — *"Once a Luck Point is spent, the pool decreases… until
+the next game session when they replenish to their normal value."* That makes
+them exactly the kind of thing this project exists to track, unlike a damage roll
+the player reads off their own sheet.
+
+The maximum is never stored, only the spending. Luck comes from POW in six-point
+bands and Magic Points equal POW, so a corrected Characteristic moves the pool
+and what is left is clamped under the new maximum. A combatant with no
+Characteristics carries an explicit maximum instead, which is where a MEG
+creature's `magic_points` lands — the statblock is final and we do not re-derive
+over it (§5). Creatures have no Luck Points, and MEG does not pretend otherwise.
+
+Absent means full rather than empty. Every fight saved before this existed loads
+with everybody's pools untouched, which is what they were, and no migration is
+needed for it.
+
+**Desperate Effort** — one Luck Point for one Action Point — is a single event
+rather than two, because it is one decision and has to undo as one. It is
+offered only when the book offers it: *"If a character has exhausted their Action
+Points."* Read loosely it would push the current total past the maximum, which
+every other rule here assumes cannot happen; offered to someone whose Fatigue has
+taken their maximum to zero it would buy a point `canAct` clamps straight back
+off, burning a Luck Point for nothing. Both are refused in the engine, not merely
+hidden in the interface.
+
+Players may spend their own without asking. The book has a player burn a Luck
+Point in the middle of somebody else's action; routing that through the GM would
+put a person in the way of a decision the rules already gave to the player.
+
 ---
 
 ## 2. Functional decisions (made by the project owner)

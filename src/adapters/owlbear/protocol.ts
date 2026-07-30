@@ -57,6 +57,19 @@ const PLAYER_EDITABLE_EVENTS = new Set<CombatEvent["type"]>([
    */
   "combatant/characteristicsChanged",
   /**
+   * Luck and Magic Points, spent and set.
+   *
+   * The clearest case of a resource that belongs to whoever is spending it: the
+   * book has the player decide to burn a Luck Point to cheat fate, in the middle
+   * of somebody else's action. Routing that through the GM would put a person in
+   * the way of a decision the rules already gave to the player.
+   */
+  "luckPoints/changed",
+  "magicPoints/changed",
+  "combatant/maxLuckPointsChanged",
+  "combatant/maxMagicPointsChanged",
+  "luck/desperateEffort",
+  /**
    * The armour penalty and any effect adjusting Action Points. Same side of the
    * line as the Characteristics they adjust — what you are wearing is yours.
    */

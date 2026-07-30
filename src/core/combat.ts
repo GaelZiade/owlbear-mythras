@@ -72,6 +72,19 @@ export type CombatEvent =
       characteristics: Characteristics;
     }
   | { type: "actionPoints/changed"; combatantId: string; delta: number }
+  | { type: "luckPoints/changed"; combatantId: string; delta: number }
+  | { type: "magicPoints/changed"; combatantId: string; delta: number }
+  /** Sets the pool for a combatant with no Characteristics to derive one from. */
+  | { type: "combatant/maxLuckPointsChanged"; combatantId: string; maxLuckPoints: number }
+  | { type: "combatant/maxMagicPointsChanged"; combatantId: string; maxMagicPoints: number }
+  /**
+   * Spends a Luck Point for one Action Point.
+   *
+   * One event rather than two, because it is one decision and has to undo as
+   * one: a player who takes the point back should not have to remember that it
+   * also cost them their luck.
+   */
+  | { type: "luck/desperateEffort"; combatantId: string }
   | {
       type: "location/damaged";
       combatantId: string;
@@ -131,6 +144,64 @@ export function baseMaxActionPoints(combatant: Combatant): number {
 export function effectiveMaxActionPoints(combatant: Combatant): number {
   const { actionPointsModifier } = fatigueRow(combatant.fatigue);
   return Math.max(0, baseMaxActionPoints(combatant) + actionPointsModifier);
+}
+
+/**
+ * Maximum Luck Points, on the same two-base rule as Action Points.
+ *
+ * Fatigue does not touch these: the table penalises skills, movement, Initiative
+ * and Action Points, and nothing else.
+ */
+export function effectiveMaxLuckPoints(combatant: Combatant): number {
+  const base = combatant.characteristics
+    ? deriveAttributes(combatant.characteristics).luckPoints
+    : (combatant.maxLuckPoints ?? 0);
+  return Math.max(0, base);
+}
+
+export function effectiveMaxMagicPoints(combatant: Combatant): number {
+  const base = combatant.characteristics
+    ? deriveAttributes(combatant.characteristics).magicPoints
+    : (combatant.maxMagicPoints ?? 0);
+  return Math.max(0, base);
+}
+
+/**
+ * Luck Points in hand.
+ *
+ * Absent means untouched rather than zero, so a character who has never spent
+ * one reads as full — and so does everybody in a fight saved before this
+ * existed. Clamped to the maximum on the way out, because the maximum can fall:
+ * correct a POW downwards and the pool shrinks under whatever was left.
+ */
+export function currentLuckPoints(combatant: Combatant): number {
+  const max = effectiveMaxLuckPoints(combatant);
+  return Math.min(combatant.luckPoints ?? max, max);
+}
+
+export function currentMagicPoints(combatant: Combatant): number {
+  const max = effectiveMaxMagicPoints(combatant);
+  return Math.min(combatant.magicPoints ?? max, max);
+}
+
+/**
+ * Whether Desperate Effort is available.
+ *
+ * *"If a character has exhausted their Action Points during a fight and needs to
+ * find that last burst of desperate energy… they may spend a Luck Point to gain
+ * an additional Action Point."*
+ *
+ * Read strictly, and the strictness is load-bearing in both directions. Spent
+ * with points still in hand it would push the current total past the maximum,
+ * which every other rule here assumes cannot happen. Spent by someone whose
+ * Fatigue has taken their maximum to zero it would buy a point `canAct` clamps
+ * straight back off — a Luck Point burnt for nothing, which is worse than a
+ * disabled button.
+ */
+export function canMakeDesperateEffort(combatant: Combatant): boolean {
+  if (combatant.actionPoints > 0) return false;
+  if (effectiveMaxActionPoints(combatant) === 0) return false;
+  return currentLuckPoints(combatant) > 0;
 }
 
 /**
@@ -301,6 +372,10 @@ function toStoredCharacter(combatant: Combatant): StoredCharacter {
       : {}),
     ...(combatant.fatigue ? { fatigue: combatant.fatigue } : {}),
     ...(combatant.notes ? { notes: combatant.notes } : {}),
+    ...(combatant.luckPoints !== undefined ? { luckPoints: combatant.luckPoints } : {}),
+    ...(combatant.maxLuckPoints !== undefined ? { maxLuckPoints: combatant.maxLuckPoints } : {}),
+    ...(combatant.magicPoints !== undefined ? { magicPoints: combatant.magicPoints } : {}),
+    ...(combatant.maxMagicPoints !== undefined ? { maxMagicPoints: combatant.maxMagicPoints } : {}),
   };
 }
 
@@ -385,6 +460,12 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
             : {}),
           ...(stored.fatigue ? { fatigue: stored.fatigue } : {}),
           ...(stored.notes ? { notes: stored.notes } : {}),
+          ...(stored.luckPoints !== undefined ? { luckPoints: stored.luckPoints } : {}),
+          ...(stored.maxLuckPoints !== undefined ? { maxLuckPoints: stored.maxLuckPoints } : {}),
+          ...(stored.magicPoints !== undefined ? { magicPoints: stored.magicPoints } : {}),
+          ...(stored.maxMagicPoints !== undefined
+            ? { maxMagicPoints: stored.maxMagicPoints }
+            : {}),
         };
         return { ...merged, initiative: 0, actionPoints: effectiveMaxActionPoints(merged) };
       });
@@ -539,6 +620,47 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
           Math.min(effectiveMaxActionPoints(combatant), combatant.actionPoints + event.delta),
         ),
       }));
+
+    case "luckPoints/changed":
+      return updateCombatant(state, event.combatantId, (combatant) => ({
+        ...combatant,
+        luckPoints: Math.max(
+          0,
+          Math.min(effectiveMaxLuckPoints(combatant), currentLuckPoints(combatant) + event.delta),
+        ),
+      }));
+
+    case "magicPoints/changed":
+      return updateCombatant(state, event.combatantId, (combatant) => ({
+        ...combatant,
+        magicPoints: Math.max(
+          0,
+          Math.min(effectiveMaxMagicPoints(combatant), currentMagicPoints(combatant) + event.delta),
+        ),
+      }));
+
+    case "combatant/maxLuckPointsChanged":
+      return updateCombatant(state, event.combatantId, (combatant) => ({
+        ...combatant,
+        maxLuckPoints: Math.max(0, event.maxLuckPoints),
+      }));
+
+    case "combatant/maxMagicPointsChanged":
+      return updateCombatant(state, event.combatantId, (combatant) => ({
+        ...combatant,
+        maxMagicPoints: Math.max(0, event.maxMagicPoints),
+      }));
+
+    case "luck/desperateEffort":
+      return updateCombatant(state, event.combatantId, (combatant) =>
+        canMakeDesperateEffort(combatant)
+          ? {
+              ...combatant,
+              luckPoints: currentLuckPoints(combatant) - 1,
+              actionPoints: combatant.actionPoints + 1,
+            }
+          : combatant,
+      );
 
     case "location/damaged": {
       const options: DamageOptions = { ignoreArmor: event.ignoreArmor ?? false };
