@@ -28,7 +28,7 @@ tracks resources; the rules live with the people playing.
 
 | Command | What it does |
 |---|---|
-| `npm test` | Vitest. 309 tests, all of `core/` and the adapters |
+| `npm test` | Vitest. 329 tests, all of `core/` and the adapters |
 | `npm run typecheck` | `tsc --noEmit`. `exactOptionalPropertyTypes` is on |
 | `npm run dev` | Dev server for use inside Owlbear (port 5173, pinned) |
 | `npm run dev:mock` | Stubbed SDK on 5174, viewable in a plain browser tab |
