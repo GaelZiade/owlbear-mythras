@@ -559,15 +559,13 @@ being a second victim of any persistence problem.
    *Mythras Imperative*, under ORC.** It was not found in the excerpt searched
    here, which was the whole of the doubt. `fatigue.ts` stands as written and the
    store listing carries no licensing risk from it.
-7. **Which of the two Difficulty methods a table uses** (§1.9). Imperative prints
-   both and says to pick one and keep it, which makes it a decision about the game
-   rather than about a roll — so it does not belong in a control the player meets
-   every time they throw. Hard-coded to multiplying, the book's own "normal
-   method". **Needs confirming:** the table reports using "el método porcentual"
-   while also saying the current code is right, and those are two different
-   methods. They diverge sharply at the ends — a skill of 65 at Herculean is 13
-   by multiplication and 0 flat. If the flat percentages are what is wanted, this
-   becomes a room-level setting rather than a dropdown.
+7. ~~**Which of the two Difficulty methods a table uses** (§1.9).~~ **Closed:
+   multiplication**, which is what was hard-coded and what the book calls the
+   default method. Confirmed against the SRD's own Difficulty Grade Table: double
+   the skill, add half again, reduce by one-third, halve, one-fifth. The flat
+   percentages stay unimplemented; if another table ever wants them they become a
+   room-level setting rather than a dropdown, because the book says to pick one
+   and keep it.
 8. **Automatic Fatigue accrual.** The engine never raises a level on its own —
    forced marches, swimming and holding your breath are all outside a combat
    tracker's knowledge. `worsenFatigue` and `recoverFatigue` exist for a future

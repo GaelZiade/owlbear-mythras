@@ -26,7 +26,7 @@ const DIFFICULTY_LABEL: Record<string, string> = {
   hard: "Hard",
   formidable: "Formidable",
   herculean: "Herculean",
-  impossible: "Impossible",
+  hopeless: "Hopeless",
 };
 
 const WOUND_LABEL: Record<WoundLevel, string> = {

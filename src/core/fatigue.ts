@@ -31,7 +31,7 @@ export type FatigueLevel =
   | "dead";
 
 /** Skill difficulty grades named by the Fatigue table. */
-export type DifficultyGrade = "none" | "hard" | "formidable" | "herculean" | "impossible";
+export type DifficultyGrade = "none" | "hard" | "formidable" | "herculean" | "hopeless";
 
 export interface FatigueRow {
   level: FatigueLevel;
@@ -135,7 +135,7 @@ export const FATIGUE_TABLE: readonly FatigueRow[] = [
   {
     level: "semi-conscious",
     name: "Semi-Conscious",
-    difficulty: "impossible",
+    difficulty: "hopeless",
     movement: "No activity possible",
     initiativeModifier: 0,
     actionPointsModifier: 0,
@@ -145,7 +145,7 @@ export const FATIGUE_TABLE: readonly FatigueRow[] = [
   {
     level: "comatose",
     name: "Comatose",
-    difficulty: "impossible",
+    difficulty: "hopeless",
     movement: "No activity possible",
     initiativeModifier: 0,
     actionPointsModifier: 0,
@@ -155,12 +155,15 @@ export const FATIGUE_TABLE: readonly FatigueRow[] = [
   {
     level: "dead",
     name: "Dead",
-    difficulty: "impossible",
-    movement: "Never",
+    difficulty: "hopeless",
+    // The book leaves Movement blank on this row and puts "Never" under Recovery
+    // Period. Those two were the wrong way round here, which read as though a
+    // corpse had a movement restriction rather than no way back.
+    movement: "—",
     initiativeModifier: 0,
     actionPointsModifier: 0,
     canAct: false,
-    recovery: null,
+    recovery: "Never",
   },
 ] as const;
 

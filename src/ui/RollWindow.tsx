@@ -150,7 +150,7 @@ export function RollWindow() {
           <span className="dim">
             {" "}
             from {skill.value}
-            {applied === "impossible" ? " · cannot be attempted" : ""}
+            {applied === "hopeless" ? " · cannot be attempted" : ""}
             {applied === "automatic" ? " · no roll needed" : ""}
           </span>
         </p>

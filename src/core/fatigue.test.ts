@@ -107,7 +107,11 @@ describe("the Fatigue table", () => {
     expect(fatigueRow("winded").recovery).toBe("15 minutes");
     expect(fatigueRow("incapacitated").recovery).toBe("24 hours");
     expect(fatigueRow("comatose").recovery).toBe("48 hours");
-    expect(fatigueRow("dead").recovery).toBeNull();
+    // "Never" is what the book prints in the Recovery Period column for Dead,
+    // and it is the one entry in that column that is a rule rather than a
+    // duration. `null` is reserved for Fresh, which has nothing to recover from.
+    expect(fatigueRow("dead").recovery).toBe("Never");
+    expect(fatigueRow("fresh").recovery).toBeNull();
   });
 
   it("keeps the difficulty grade and movement, which are shown but not enforced", () => {

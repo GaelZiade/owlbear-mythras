@@ -14,9 +14,9 @@ import { rollDie, type RandomSource } from "./dice";
 /**
  * The grades, easiest first.
  *
- * `automatic` and `impossible` are in the table but are not rolls at all: one
+ * `automatic` and `hopeless` are in the table but are not rolls at all: one
  * succeeds without dice, the other cannot be attempted. They are modelled here
- * anyway so a caller can hold "the GM graded this Impossible" without a second
+ * anyway so a caller can hold "the GM graded this Hopeless" without a second
  * vocabulary for it.
  */
 export const DIFFICULTY_GRADES = [
@@ -27,7 +27,7 @@ export const DIFFICULTY_GRADES = [
   "hard",
   "formidable",
   "herculean",
-  "impossible",
+  "hopeless",
 ] as const;
 
 export type DifficultyGrade = (typeof DIFFICULTY_GRADES)[number];
@@ -62,7 +62,7 @@ export const DIFFICULTY_TABLE: readonly GradeRow[] = [
   { grade: "hard", name: "Hard", multiplier: 2 / 3, simplified: -20, rollable: true },
   { grade: "formidable", name: "Formidable", multiplier: 0.5, simplified: -40, rollable: true },
   { grade: "herculean", name: "Herculean", multiplier: 0.2, simplified: -80, rollable: true },
-  { grade: "impossible", name: "Impossible", multiplier: null, simplified: 0, rollable: false },
+  { grade: "hopeless", name: "Hopeless", multiplier: null, simplified: 0, rollable: false },
 ] as const;
 
 const BY_GRADE = new Map(DIFFICULTY_TABLE.map((row) => [row.grade, row]));
@@ -176,14 +176,14 @@ export function gradeRoll(
       note: "Automatic: no roll needed.",
     };
   }
-  if (grade === "impossible") {
+  if (grade === "hopeless") {
     return {
       roll,
       target,
       criticalOn,
       outcome: "failure",
       grade,
-      note: "Impossible: the attempt cannot be made.",
+      note: "Hopeless: the attempt cannot be made.",
     };
   }
 

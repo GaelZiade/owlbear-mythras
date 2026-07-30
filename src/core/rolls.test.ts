@@ -24,7 +24,7 @@ describe("the Difficulty Grade table", () => {
       "hard",
       "formidable",
       "herculean",
-      "impossible",
+      "hopeless",
     ]);
   });
 
@@ -47,7 +47,7 @@ describe("the Difficulty Grade table", () => {
       DIFFICULTY_TABLE.map(({ grade, rollable: value }) => [grade, value]),
     );
     expect(rollable.automatic).toBe(false);
-    expect(rollable.impossible).toBe(false);
+    expect(rollable.hopeless).toBe(false);
   });
 });
 
@@ -109,8 +109,8 @@ describe("picking a grade when several apply", () => {
     expect(hardestGrade(["hard", fromFatigue])).toBe("formidable");
   });
 
-  it("lets Impossible win over everything", () => {
-    expect(hardestGrade(["very-easy", "impossible", "standard"])).toBe("impossible");
+  it("lets Hopeless win over everything", () => {
+    expect(hardestGrade(["very-easy", "hopeless", "standard"])).toBe("hopeless");
   });
 });
 
@@ -197,9 +197,9 @@ describe("the grades that are not rolls", () => {
     }
   });
 
-  it("fails Impossible without consulting the die", () => {
+  it("fails Hopeless without consulting the die", () => {
     for (const roll of [1, 50, 100]) {
-      const result = gradeRoll(roll, 90, "impossible");
+      const result = gradeRoll(roll, 90, "hopeless");
       expect(result.outcome).toBe("failure");
       expect(result.note).toContain("cannot be made");
     }

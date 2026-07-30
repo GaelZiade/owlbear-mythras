@@ -163,8 +163,14 @@ The **rules content** derives from *Mythras Imperative*, published under the
 of The Design Mechanism are *Reserved Material* and are neither included nor
 reproduced here.
 
-Any rulebook PDFs kept locally for reference are excluded in `.gitignore`. Do not
-add them.
+The Imperative SRD itself lives in [`reference/`](reference/), verbatim and with
+its own ORC Notice attached — the ORC License exists so that Licensed Material can
+be redistributed that way, and every rule this project implements should be
+traceable to a line in it.
+
+That is the only rulebook that belongs here. Commercial PDFs kept locally for
+reference are excluded in `.gitignore`; do not add them. *Mythras* and *Classic
+Fantasy* are named Reserved Material by the SRD itself.
 
 ### Mythras Enemy Generator
 
