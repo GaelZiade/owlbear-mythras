@@ -1,4 +1,4 @@
-import type { HitLocation, WoundLevel } from "./types";
+import type { HitLocation, Weapon, WoundLevel } from "./types";
 
 /**
  * Wound level of a location.
@@ -89,5 +89,40 @@ export function applyHealing(location: HitLocation, amount: number): HitLocation
   return {
     ...location,
     hitPoints: Math.min(location.maxHitPoints, location.hitPoints + amount),
+  };
+}
+
+/**
+ * What a hit would do to a weapon, without doing it.
+ *
+ * A parry puts the weapon in the way of the blow, so weapons take damage the
+ * same way a location does — Armour Points first, then Hit Points — and at zero
+ * the weapon breaks. There is no wound level, because a weapon is either usable
+ * or it is not.
+ *
+ * Separate from `previewDamage` rather than casting a weapon into a
+ * `HitLocation`: the two share arithmetic and nothing else, and a weapon with a
+ * `range` and a `woundAfter` would be a lie the type system had agreed to.
+ */
+export interface WeaponDamagePreview {
+  mitigated: number;
+  absorbed: number;
+  hitPointsAfter: number;
+  broken: boolean;
+}
+
+export function previewWeaponDamage(
+  weapon: Weapon,
+  amount: number,
+  { ignoreArmor = false }: DamageOptions = {},
+): WeaponDamagePreview {
+  const armorPoints = weapon.armorPoints ?? 0;
+  const mitigated = ignoreArmor ? Math.max(0, amount) : Math.max(0, amount - armorPoints);
+  const hitPointsAfter = Math.max(0, (weapon.hitPoints ?? 0) - mitigated);
+  return {
+    mitigated,
+    absorbed: Math.max(0, amount) - mitigated,
+    hitPointsAfter,
+    broken: hitPointsAfter === 0,
   };
 }

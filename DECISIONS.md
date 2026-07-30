@@ -317,6 +317,47 @@ case-insensitive one finds `CHA` inside `Character's` and silently adds it to
 every Passion on every sheet, plausibly enough that nobody would question the
 total.
 
+### 1.14 A weapon is a target, not a section
+
+Weapons started out listed with the spells, as reference. That was wrong twice
+over: a dragon with six attacks printed six rows and pushed the damage controls
+off the screen, and a weapon is not reference — it is a thing blows land on,
+because parrying puts it in the way.
+
+So the list became a picker and the chosen weapon became a target sitting with
+the hit locations, clicked the same way and damaged through the same controls.
+Armour Points come off first exactly as a location's do; at zero it is broken,
+and there are no wound levels, because a weapon is usable or it is not.
+
+Which weapon is in hand is local state rather than persisted. It answers "which
+one am I looking at", not "what is true about this fight", and switching it
+should not write to the room or move anybody else's screen.
+
+### 1.15 The gait belongs to the combatant, not to the roll dialog
+
+It began as a control in the roll window, which put it in the wrong place twice.
+Two surfaces need it — the distances in the panel and the grade shift on a roll —
+so it was two places to set one thing, and the one you forget is the one that is
+wrong. And sprinting is not a property of a roll: you sprint, and *then* rolls
+are harder, whether or not you open a dialog.
+
+It now lives on the combatant, set beside the distances it changes, and the roll
+window is handed the shift it costs. The other two speeds stay on screen next to
+the picker, because choosing a gait is choosing what it costs and you cannot
+weigh 6 metres against 30 through a closed dropdown.
+
+### 1.16 Panel order follows how often something is touched
+
+Top to bottom: hit locations, the weapon, damage and healing, the spendable
+pools and the distances, Passions and spells, Fatigue, then everything else.
+
+The rule is frequency. Hit Points and damage are every Turn; the pools and the
+gait are most Turns; Fatigue is a few times a fight; Characteristics, the token
+link and the owner are once, at setup, and had been sitting between the numbers
+that move. Movement and Magic Points used to fall between the locations and the
+damage controls, which put the two halves of one action — pick a target, then say
+how hard — on either side of a statblock.
+
 ---
 
 ## 2. Functional decisions (made by the project owner)

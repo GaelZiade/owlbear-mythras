@@ -1051,107 +1051,89 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 /*
- * Run and Sprint, in metres. Dimmer and tighter than the Attributes above: they
- * are the same fact restated at a different speed, not four more numbers.
+ * The gait, set here rather than in the roll window: it is a fact about the
+ * fight that changes the distance on screen and the difficulty of every roll,
+ * so it belongs where the distances are. The other two speeds stay visible
+ * beside the picker — choosing a gait is choosing what it costs, and you cannot
+ * weigh 6 against 30 through a closed dropdown.
  */
 .gaits {
   flex: 1 1 100%;
-  display: flex;
-  gap: 12px;
-  margin: 0;
-  font-size: 10.5px;
-  color: var(--text-dim);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 8px;
 }
 
-.gaits div {
-  display: flex;
-  gap: 4px;
-}
-
-.gaits dt {
-  color: var(--text-off);
-}
-
-.gaits dd {
-  margin: 0;
+.gaits select {
+  font-size: 11.5px;
   font-weight: 600;
+}
+
+.gait-static {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.gait-others {
+  grid-column: 1;
+  font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- weapons and spells ---------- */
+.gait-cost {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--minor);
+  white-space: nowrap;
+}
 
-.kit {
+/* Fatigue between what changes every Turn and the setup that changes once. */
+.fatigue-block {
   display: grid;
   gap: 6px;
-}
-
-.weapons {
-  list-style: none;
-  /* A `ul` keeps its indent even with no markers to indent past. */
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 3px;
-}
-
-/*
- * Name and dice on the first line, everything else beneath. A weapon is read at
- * a glance — "what do I roll" — and only occasionally interacted with, when a
- * parry has just cost it Hit Points.
- */
-.weapon {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1px 8px;
-  align-items: center;
-  padding: 4px 7px;
+  padding: 6px 8px;
   border-radius: var(--r);
   background: var(--bg);
 }
 
-.weapon-name {
-  font-size: 12px;
-  font-weight: 600;
+/* ---------- the weapon as a target ---------- */
+
+/*
+ * Sits under the hit locations and is styled as one of them, because that is
+ * what it is: something a blow lands on. The picker above it exists because a
+ * dragon with six attacks printed six rows and pushed the damage controls off
+ * the screen.
+ */
+.weapon-target {
+  display: grid;
+  gap: 3px;
+  padding: 5px 6px;
+  border-radius: var(--r);
+  background: var(--bg);
+  border: 1px solid var(--line);
 }
 
-.weapon-stats {
-  grid-column: 1;
-  font-size: 10.5px;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-}
-
-.weapon-hp {
-  grid-row: 1 / span 2;
-  grid-column: 2;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.weapon-armor {
-  color: var(--text-dim);
-  font-weight: 500;
-}
-
-/* The same glyph the hit locations use, so Armour Points read as one idea. */
-.weapon-armor::before {
-  content: "⛊ ";
+.weapon-only {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--text-off);
 }
 
-.weapon-broken {
-  color: var(--major);
+.weapon-hit .location-name {
+  font-variant-numeric: tabular-nums;
 }
 
 .weapon-effects {
-  grid-column: 1 / -1;
+  margin: 0;
   font-size: 10px;
   color: var(--text-off);
 }
+
+/* ---------- spells and passions ---------- */
 
 .spells {
   display: grid;
@@ -1179,6 +1161,10 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
   display: grid;
   gap: 2px;
+}
+
+.passions .settings-caption {
+  padding-left: 1px;
 }
 
 .passion {
@@ -1331,15 +1317,22 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text);
 }
 
-/* Given the window's height rather than a fixed cap: the list is the point. */
+/*
+ * The list is boxed and scrolls inside its own border, so where it ends is
+ * visible. Unboxed it ran straight into the controls beneath it and the window
+ * read as one undifferentiated column of things.
+ */
 .roll-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 3px;
   max-height: 46vh;
   overflow-y: auto;
   display: grid;
   gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg);
 }
 
 .roll-pick {
@@ -1351,7 +1344,13 @@ input[type="number"]::-webkit-inner-spin-button {
   padding: 5px 7px;
   text-align: left;
   font-size: 12px;
-  background: var(--bg);
+  /*
+   * The radius matches the row rather than the outer box: the selected state
+   * used to be a square highlight sitting inside a rounded row, with the
+   * corners of the row showing through at all four points.
+   */
+  border-radius: var(--r);
+  background: transparent;
 }
 
 .roll-pick:hover {
@@ -1359,8 +1358,9 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .roll-pick.on {
-  background: color-mix(in srgb, var(--accent) 18%, var(--bg));
-  outline: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  /* Inset so the ring follows the same rounded box the fill does. */
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .roll-style {
@@ -1376,6 +1376,13 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text-off);
 }
 
+/* The pickers as one row of equal cells, so they read as a set of settings. */
+.roll-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
 .roll-grade {
   display: flex;
   flex-direction: column;
@@ -1384,43 +1391,118 @@ input[type="number"]::-webkit-inner-spin-button {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-off);
+  min-width: 0;
 }
-
 
 .roll-note {
   margin: 0;
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--minor);
 }
 
-.roll-target {
-  margin: 0;
+/*
+ * The number and its working in one panel. Everything here answers "what am I
+ * rolling against and why", so it is bordered as one statement rather than
+ * three lines that happen to be adjacent.
+ */
+.roll-summary {
+  display: grid;
+  gap: 5px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg);
+}
+
+.roll-headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.roll-skill-name {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.roll-vs {
   font-size: 11px;
   color: var(--text-dim);
 }
 
-/*
- * Both ranges before the throw, in the colours the outcomes use afterwards, so
- * the number that lands is recognised rather than read.
- */
-.roll-ranges {
-  display: flex;
-  gap: 10px;
+.roll-vs strong {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  margin-left: 3px;
+}
+
+.roll-working {
   margin: 0;
-  font-size: 11px;
+  font-size: 10.5px;
+  color: var(--text-off);
   font-variant-numeric: tabular-nums;
 }
 
+/* The two ranges as labelled chips, not a trailing sentence. */
+.roll-ranges {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
 .roll-range {
+  flex: 1 1 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: var(--r);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.roll-range-label {
+  font-size: 9px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
 }
 
 .roll-range-critical {
   color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .roll-range-fumble {
   color: var(--major);
+  background: color-mix(in srgb, var(--major) 12%, transparent);
+}
+
+/*
+ * The one thing the window exists to do, sized like it. It used to be a small
+ * button alone in a corner, which read as an afterthought next to the controls
+ * that fed it.
+ */
+.roll-throw {
+  width: 100%;
+  padding: 9px;
+  border-radius: var(--r);
+  font-size: 13px;
+  font-weight: 650;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.roll-throw:hover {
+  filter: brightness(1.08);
 }
 
 /*

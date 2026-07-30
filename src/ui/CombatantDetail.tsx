@@ -12,9 +12,10 @@ import {
   effectiveMaxLuckPoints,
   effectiveMaxMagicPoints,
   effectiveMovementRate,
+  gaitGradeShift,
 } from "../core/combat";
 import { deriveAttributes } from "../core/characteristics";
-import { GAIT_TABLE, movementForGait } from "../core/movement";
+import { GAIT_TABLE, gaitRow, movementForGait, type Gait } from "../core/movement";
 import { augmentFrom } from "../core/rolls";
 import {
   FATIGUE_TABLE,
@@ -23,8 +24,8 @@ import {
   worsenFatigue,
   type FatigueLevel,
 } from "../core/fatigue";
-import type { Combatant, HitLocation, WoundLevel } from "../core/types";
-import { applyHealing, previewDamage, woundLevel } from "../core/wounds";
+import type { Combatant, HitLocation, Weapon, WoundLevel } from "../core/types";
+import { applyHealing, previewDamage, previewWeaponDamage, woundLevel } from "../core/wounds";
 import { BodyDiagram } from "./BodyDiagram";
 import { CharacteristicsPanel } from "./Characteristics";
 import { sceneTokens } from "../adapters/owlbear/tokens";
@@ -52,6 +53,16 @@ interface Props {
 }
 
 type Mode = "damage" | "heal";
+
+/**
+ * What the next hit lands on.
+ *
+ * A weapon is targeted by name and a location by id, because that is how each
+ * one is addressed everywhere else — the archive keys weapons by name and
+ * locations by id — and a single `string` would make the two interchangeable
+ * exactly where they must not be.
+ */
+type Target = { kind: "location"; id: string } | { kind: "weapon"; name: string };
 
 /**
  * Luck and Magic Points, and the Attributes worth reading mid-fight.
@@ -163,7 +174,7 @@ function Resources({ combatant, editable }: { combatant: Combatant; editable: bo
         </button>
       )}
 
-      {(derived || movement !== null) && (
+      {(derived || (movement !== null && movement !== combatant.movementRate)) && (
         <dl className="resource-derived">
           {derived && (
             <>
@@ -190,14 +201,12 @@ function Resources({ combatant, editable }: { combatant: Combatant; editable: bo
             arithmetic the tracker can do; leaving "Halved" on screen next to a
             known rate would be making the player do it.
           */}
-          {movement !== null && (
+          {movement !== null && movement !== combatant.movementRate && (
             <div>
               <dt>Movement</dt>
               <dd>
                 {movement === 0 ? "Immobile" : `${movement} m`}
-                {movement !== combatant.movementRate && (
-                  <span className="dim"> of {combatant.movementRate}</span>
-                )}
+                <span className="dim"> of {combatant.movementRate}</span>
               </dd>
             </div>
           )}
@@ -211,104 +220,74 @@ function Resources({ combatant, editable }: { combatant: Combatant; editable: bo
         nothing the Movement line above has not already said.
       */}
       {movement !== null && movement > 0 && (
-        <dl className="gaits">
-          {GAIT_TABLE.filter(({ gait }) => gait !== "walk").map((row) => (
-            <div key={row.gait}>
-              <dt>{row.name}</dt>
-              <dd>{movementForGait(movement, row.gait)} m</dd>
-            </div>
-          ))}
-        </dl>
+        <div className="gaits">
+          {editable ? (
+            <select
+              aria-label="Gait"
+              value={combatant.gait ?? "walk"}
+              onChange={(event) =>
+                dispatch({
+                  type: "combatant/gaitChanged",
+                  combatantId: combatant.id,
+                  gait: event.target.value as Gait,
+                })
+              }
+            >
+              {GAIT_TABLE.map((row) => (
+                <option key={row.gait} value={row.gait}>
+                  {row.name} — {movementForGait(movement, row.gait)} m
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="gait-static">
+              {gaitRow(combatant.gait).name} — {movementForGait(movement, combatant.gait ?? "walk")} m
+            </span>
+          )}
+
+          {/*
+            The other two distances stay on screen beside the picker: choosing a
+            gait is a decision about what it costs, and comparing 6 with 30 is
+            the decision. Hiding the alternatives behind the dropdown would make
+            you open it to find out what you were choosing between.
+          */}
+          <span className="gait-others dim">
+            {GAIT_TABLE.filter(({ gait }) => gait !== (combatant.gait ?? "walk"))
+              .map((row) => `${row.name} ${movementForGait(movement, row.gait)} m`)
+              .join(" · ")}
+          </span>
+
+          {gaitRow(combatant.gait).gradeShift > 0 && (
+            <span className="gait-cost">
+              rolls {gaitRow(combatant.gait).gradeShift} grade
+              {gaitRow(combatant.gait).gradeShift > 1 ? "s" : ""} harder
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
 /**
- * Weapons and spells: reference, with one number that moves.
+ * Passions and spells: reference, read and never edited.
  *
- * Damage, size and reach are printed and left alone — the dice are thrown in
- * physical form and read off the player's own sheet. Weapon Hit Points are the
- * exception, because parrying is how a weapon breaks, so those get a stepper.
+ * Weapons used to be here and are not any more. They earned a place up with the
+ * hit locations instead, because a weapon is something a blow lands on rather
+ * than something to look up.
  *
  * Spells are a list because Magic Points are already a pool above: knowing what
  * a caster can spend them on is the other half of tracking them.
  */
-function Kit({ combatant, editable }: { combatant: Combatant; editable: boolean }) {
-  const weapons = combatant.weapons ?? [];
+function Kit({ combatant }: { combatant: Combatant }) {
   const spells = combatant.spells ?? [];
   const passions = combatant.passions ?? [];
-  if (weapons.length === 0 && spells.length === 0 && passions.length === 0) return null;
+  if (spells.length === 0 && passions.length === 0) return null;
 
   const traditions = [...new Set(spells.map((spell) => spell.tradition ?? "Spells"))];
 
   return (
     <div className="kit">
-      {weapons.length > 0 && (
-        <ul className="weapons">
-          {weapons.map((weapon) => (
-            <li key={weapon.name} className="weapon">
-              <span className="weapon-name">{weapon.name}</span>
-              <span className="weapon-stats">
-                {[weapon.damage, weapon.size, weapon.reach && `reach ${weapon.reach}`]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-              {weapon.maxHitPoints !== undefined && (
-                <span className="weapon-hp">
-                  {weapon.armorPoints !== undefined && (
-                    <span className="weapon-armor" title="Armor Points">
-                      {weapon.armorPoints}
-                    </span>
-                  )}
-                  {editable ? (
-                    <span className="resource-steps">
-                      <button
-                        type="button"
-                        className="ghost step"
-                        aria-label={`Damage ${weapon.name}`}
-                        disabled={(weapon.hitPoints ?? 0) === 0}
-                        onClick={() =>
-                          dispatch({
-                            type: "weapon/hitPointsChanged",
-                            combatantId: combatant.id,
-                            weapon: weapon.name,
-                            hitPoints: (weapon.hitPoints ?? 0) - 1,
-                          })
-                        }
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost step"
-                        aria-label={`Repair ${weapon.name}`}
-                        disabled={weapon.hitPoints === weapon.maxHitPoints}
-                        onClick={() =>
-                          dispatch({
-                            type: "weapon/hitPointsChanged",
-                            combatantId: combatant.id,
-                            weapon: weapon.name,
-                            hitPoints: (weapon.hitPoints ?? 0) + 1,
-                          })
-                        }
-                      >
-                        +
-                      </button>
-                    </span>
-                  ) : null}
-                  <span className={weapon.hitPoints === 0 ? "weapon-broken" : ""}>
-                    {weapon.hitPoints ?? weapon.maxHitPoints}
-                    <span className="dim">/{weapon.maxHitPoints}</span>
-                  </span>
-                </span>
-              )}
-              {weapon.effects && <span className="weapon-effects">{weapon.effects}</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-
       {/*
         With what each is worth as an augment, since that is what a Passion is
         for most of the time and 20% of 57 is not a sum anybody does mid-fight.
@@ -317,6 +296,7 @@ function Kit({ combatant, editable }: { combatant: Combatant; editable: boolean 
       */}
       {passions.length > 0 && (
         <ul className="passions">
+          <li className="settings-caption">Passions</li>
           {passions.map((passion) => (
             <li key={passion.name} className="passion">
               <span className="passion-name">{passion.name}</span>
@@ -344,7 +324,8 @@ function Kit({ combatant, editable }: { combatant: Combatant; editable: boolean 
 
 interface Outcome {
   hitPointsAfter: number;
-  woundAfter: WoundLevel;
+  /** `null` for a weapon: it is usable or broken, and has no wound levels. */
+  woundAfter: WoundLevel | null;
   note: string | null;
 }
 
@@ -367,6 +348,34 @@ function outcomeFor(
   };
 }
 
+/** The same, for a weapon: no wound levels, and broken at zero. */
+function weaponOutcomeFor(
+  weapon: Weapon,
+  mode: Mode,
+  amount: number,
+  ignoreArmor: boolean,
+): Outcome {
+  const max = weapon.maxHitPoints ?? weapon.hitPoints ?? 0;
+  if (mode === "heal") {
+    return {
+      hitPointsAfter: Math.min(max, (weapon.hitPoints ?? 0) + amount),
+      woundAfter: null,
+      note: null,
+    };
+  }
+
+  const preview = previewWeaponDamage(weapon, amount, { ignoreArmor });
+  return {
+    hitPointsAfter: preview.hitPointsAfter,
+    woundAfter: null,
+    note: preview.broken
+      ? "Broken"
+      : preview.absorbed > 0
+        ? `${preview.absorbed} absorbed by the weapon`
+        : null,
+  };
+}
+
 /**
  * Expanded panel: where the blow landed, then how hard, then what it does.
  *
@@ -376,7 +385,21 @@ function outcomeFor(
  * who is still standing.
  */
 export function CombatantDetail({ combatant, session, editable }: Props) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /**
+   * What the next hit lands on: a hit location, or the weapon being parried
+   * with. A weapon is a target like any other — it has Armour Points, it has
+   * Hit Points and it breaks — so it is picked the same way rather than getting
+   * a second set of controls of its own.
+   */
+  const [target, setTarget] = useState<Target | null>(null);
+  /**
+   * Which weapon is in hand, and therefore the one on the target row.
+   *
+   * Local rather than persisted: a dragon with six attacks made the panel
+   * unreadable, and this is "which one am I looking at" rather than a fact about
+   * the fight. Switching it costs nothing and changes nobody else's screen.
+   */
+  const [weaponName, setWeaponName] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("damage");
   const [amount, setAmount] = useState(1);
   const [ignoreArmor, setIgnoreArmor] = useState(false);
@@ -398,8 +421,22 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
   }, [isGm]);
 
   const fatigue = fatigueRow(combatant.fatigue);
-  const selected = combatant.locations.find(({ id }) => id === selectedId) ?? null;
-  const outcome = selected ? outcomeFor(selected, mode, amount, ignoreArmor) : null;
+  const weapons = combatant.weapons ?? [];
+  const weapon = weapons.find(({ name }) => name === weaponName) ?? weapons[0] ?? null;
+
+  const selectedLocation =
+    target?.kind === "location"
+      ? (combatant.locations.find(({ id }) => id === target.id) ?? null)
+      : null;
+  const selectedWeapon = target?.kind === "weapon" ? weapon : null;
+
+  const outcome = selectedLocation
+    ? outcomeFor(selectedLocation, mode, amount, ignoreArmor)
+    : selectedWeapon
+      ? weaponOutcomeFor(selectedWeapon, mode, amount, ignoreArmor)
+      : null;
+  const targetName = selectedLocation?.name ?? selectedWeapon?.name ?? null;
+  const targetHitPoints = selectedLocation?.hitPoints ?? selectedWeapon?.hitPoints ?? 0;
 
   /**
    * Everyone who could own this combatant.
@@ -431,31 +468,44 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
     dispatch({ type: "combatant/fatigueChanged", combatantId: combatant.id, fatigue: level });
 
   const apply = () => {
-    if (!selected) return;
-    dispatch(
-      mode === "damage"
-        ? {
-            type: "location/damaged",
-            combatantId: combatant.id,
-            locationId: selected.id,
-            amount,
-            ignoreArmor,
-          }
-        : {
-            type: "location/healed",
-            combatantId: combatant.id,
-            locationId: selected.id,
-            amount,
-          },
-    );
+    if (selectedLocation) {
+      dispatch(
+        mode === "damage"
+          ? {
+              type: "location/damaged",
+              combatantId: combatant.id,
+              locationId: selectedLocation.id,
+              amount,
+              ignoreArmor,
+            }
+          : {
+              type: "location/healed",
+              combatantId: combatant.id,
+              locationId: selectedLocation.id,
+              amount,
+            },
+      );
+      return;
+    }
+
+    if (selectedWeapon && outcome) {
+      // A weapon has one number, so damage and repair are the same event with
+      // the arithmetic already done by the preview the user is looking at.
+      dispatch({
+        type: "weapon/hitPointsChanged",
+        combatantId: combatant.id,
+        weapon: selectedWeapon.name,
+        hitPoints: outcome.hitPointsAfter,
+      });
+    }
   };
 
   return (
     <div className="detail">
       <BodyDiagram
         locations={combatant.locations}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
+        selectedId={target?.kind === "location" ? target.id : null}
+        onSelect={(id) => setTarget({ kind: "location", id })}
       />
 
       {/*
@@ -468,14 +518,14 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
       <ul className="locations">
         {combatant.locations.map((location) => {
           const wound = woundLevel(location);
-          const isSelected = location.id === selectedId;
+          const isSelected = target?.kind === "location" && location.id === target.id;
           return (
             <li key={location.id}>
               <button
                 type="button"
                 className={`location location-${wound}${isSelected ? " location-selected" : ""}`}
                 aria-pressed={isSelected}
-                onClick={() => setSelectedId(location.id)}
+                onClick={() => setTarget({ kind: "location", id: location.id })}
               >
                 <span className="location-range">
                   {location.range[0] === location.range[1]
@@ -496,9 +546,67 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
         })}
       </ul>
 
-      <Resources combatant={combatant} editable={editable} />
+      {/*
+        The weapon in hand, targeted the same way a limb is.
+        
+        It sits in the locations block rather than in a section of its own,
+        because during a fight it is one more thing a blow can land on: a parry
+        puts the weapon in the way. A dragon with six attacks used to print six
+        rows here and push everything else off the screen, so the list became a
+        picker and only the chosen one is a target.
+      */}
+      {weapon && (
+        <div className="weapon-target">
+          {weapons.length > 1 ? (
+            <select
+              aria-label="Weapon in hand"
+              value={weapon.name}
+              onChange={(event) => {
+                setWeaponName(event.target.value);
+                setTarget({ kind: "weapon", name: event.target.value });
+              }}
+            >
+              {weapons.map((entry) => (
+                <option key={entry.name} value={entry.name}>
+                  {entry.name}
+                  {entry.maxHitPoints !== undefined &&
+                    ` — ${entry.hitPoints ?? entry.maxHitPoints}/${entry.maxHitPoints}`}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="weapon-only">{weapon.name}</span>
+          )}
 
-      <Kit combatant={combatant} editable={editable} />
+          <button
+            type="button"
+            className={`location weapon-hit${
+              target?.kind === "weapon" ? " location-selected" : ""
+            }${weapon.hitPoints === 0 ? " location-major" : ""}`}
+            aria-pressed={target?.kind === "weapon"}
+            onClick={() => setTarget({ kind: "weapon", name: weapon.name })}
+          >
+            <span className="location-name">
+              {[weapon.damage, weapon.size, weapon.reach && `reach ${weapon.reach}`]
+                .filter(Boolean)
+                .join(" · ") || "Weapon"}
+            </span>
+            {weapon.armorPoints !== undefined && (
+              <span className="location-armor" title="Armor Points">
+                {weapon.armorPoints}
+              </span>
+            )}
+            {weapon.maxHitPoints !== undefined && (
+              <span className="location-hp">
+                {weapon.hitPoints ?? weapon.maxHitPoints}
+                <span className="dim">/{weapon.maxHitPoints}</span>
+              </span>
+            )}
+          </button>
+
+          {weapon.effects && <p className="weapon-effects">{weapon.effects}</p>}
+        </div>
+      )}
 
       {/*
         Three inputs and an outcome, in the order the decision is actually made:
@@ -507,7 +615,7 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
         it is entered — a die roll lands once, then armour and effects adjust it.
       */}
       {editable && (
-        <div className={`damage${selected ? "" : " damage-idle"}`}>
+        <div className={`damage${target ? "" : " damage-idle"}`}>
           <div className="segment" role="group" aria-label="Damage or heal">
             <button
               type="button"
@@ -572,22 +680,137 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
             )}
           </div>
 
-          {selected && outcome ? (
-            <div className={`preview preview-${outcome.woundAfter}`}>
+          {outcome && targetName ? (
+            <div className={`preview preview-${outcome.woundAfter ?? "unharmed"}`}>
               <span className="preview-line">
-                <strong>{selected.name}</strong> {selected.hitPoints} → {outcome.hitPointsAfter}
-                {" · "}
-                {WOUND_LABEL[outcome.woundAfter]}
+                <strong>{targetName}</strong> {targetHitPoints} → {outcome.hitPointsAfter}
+                {outcome.woundAfter && ` · ${WOUND_LABEL[outcome.woundAfter]}`}
               </span>
               {outcome.note && <span className="preview-note">{outcome.note}</span>}
             </div>
           ) : (
-            <p className="preview preview-empty">Pick a hit location above.</p>
+            <p className="preview preview-empty">
+              Pick a hit location{weapon ? " or the weapon" : ""} above.
+            </p>
           )}
 
-          <button type="button" className="apply" disabled={!selected} onClick={apply}>
+          <button type="button" className="apply" disabled={!target} onClick={apply}>
             {mode === "damage" ? "Apply damage" : "Apply healing"}
           </button>
+        </div>
+      )}
+
+      <Resources combatant={combatant} editable={editable} />
+
+      <Kit combatant={combatant} />
+
+      {/*
+        Fatigue in a block of its own, between what changes every Turn and
+        the setup that changes once. It is touched a few times a fight — a
+        failed Endurance roll costs a level — which is often enough that
+        burying it under the token and owner dropdowns was wrong, and rare
+        enough that it does not belong up with the Hit Points.
+      */}
+      {editable && (
+        <div className="fatigue-block">
+        {/*
+          Stepped rather than picked. Fatigue moves one level at a time at the
+          table — a failed Endurance roll costs you one — so the common action
+          is a button, not hunting through ten options. The dropdown stays in
+          the middle for the rare jump, and to name the level you are on.
+        */}
+        <div className="settings-wide fatigue-picker">
+          <span className="settings-label">Fatigue</span>
+          <div className="stepper">
+            <button
+              type="button"
+              className="ghost step"
+              disabled={fatigue.level === "fresh"}
+              aria-label={`Recover a Fatigue level for ${combatant.name}`}
+              onClick={() => setFatigue(recoverFatigue(combatant.fatigue))}
+            >
+              −
+            </button>
+            <select
+              value={fatigue.level}
+              aria-label="Fatigue level"
+              onChange={(event) => setFatigue(event.target.value as FatigueLevel)}
+            >
+              {FATIGUE_TABLE.map((row) => (
+                <option key={row.level} value={row.level}>
+                  {row.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="ghost step"
+              disabled={fatigue.level === "dead"}
+              aria-label={`Worsen Fatigue for ${combatant.name}`}
+              onClick={() => setFatigue(worsenFatigue(combatant.fatigue))}
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        {/*
+          The table's five columns, split by what this tracker can enforce.
+          Initiative and Action Points are applied to the numbers above; the
+          other three are shown because a GM needs them at the table, and a
+          penalty the tracker silently forgets is worse than one it prints.
+        */}
+        {fatigue.level !== "fresh" && (
+          <div className="fatigue-effects">
+            <span className="settings-caption">{fatigue.name}</span>
+
+            {/*
+              Past Incapacitated the table stops printing penalties, so both
+              numbers read as zero. Showing "No penalty" there would say the
+              combatant is fine; the dash defers to the halt line below.
+            */}
+            <dl className="fatigue-applied">
+              <div>
+                <dt>Initiative</dt>
+                <dd>
+                  {!fatigue.canAct
+                    ? "—"
+                    : fatigue.initiativeModifier === 0
+                      ? "No penalty"
+                      : `${fatigue.initiativeModifier} → ${effectiveInitiative(combatant)}`}
+                </dd>
+              </div>
+              <div>
+                <dt>Action Points</dt>
+                <dd>
+                  {!fatigue.canAct
+                    ? "—"
+                    : fatigue.actionPointsModifier === 0
+                      ? "No penalty"
+                      : `${fatigue.actionPointsModifier} → ${effectiveMaxActionPoints(combatant)} max`}
+                </dd>
+              </div>
+            </dl>
+
+            {!fatigue.canAct && <p className="fatigue-halt">No activity possible</p>}
+
+            <dl className="fatigue-manual">
+              <div>
+                <dt>Skills</dt>
+                <dd>{DIFFICULTY_LABEL[fatigue.difficulty] ?? fatigue.difficulty}</dd>
+              </div>
+              <div>
+                <dt>Movement</dt>
+                <dd>{fatigue.movement}</dd>
+              </div>
+              <div>
+                <dt>Recovery</dt>
+                <dd>{fatigue.recovery ?? "—"}</dd>
+              </div>
+            </dl>
+            <p className="fatigue-note">Skills, movement and recovery are yours to apply.</p>
+          </div>
+        )}
         </div>
       )}
 
@@ -614,6 +837,9 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
                   skills: combatant.skills ?? [],
                   fatigueGrade: fatigue.difficulty === "none" ? null : fatigue.difficulty,
                   fatigueName: fatigue.name,
+                  ...(combatant.gait && combatant.gait !== "walk"
+                    ? { gaitName: gaitRow(combatant.gait).name, gaitShift: gaitGradeShift(combatant) }
+                    : {}),
                   ...(combatant.passions ? { passions: combatant.passions } : {}),
                 })
               }
@@ -750,121 +976,22 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
             </div>
           </dl>
 
-          {/*
-            Stepped rather than picked. Fatigue moves one level at a time at the
-            table — a failed Endurance roll costs you one — so the common action
-            is a button, not hunting through ten options. The dropdown stays in
-            the middle for the rare jump, and to name the level you are on.
-          */}
-          <div className="settings-wide fatigue-picker">
-            <span className="settings-label">Fatigue</span>
-            <div className="stepper">
-              <button
-                type="button"
-                className="ghost step"
-                disabled={fatigue.level === "fresh"}
-                aria-label={`Recover a Fatigue level for ${combatant.name}`}
-                onClick={() => setFatigue(recoverFatigue(combatant.fatigue))}
-              >
-                −
-              </button>
-              <select
-                value={fatigue.level}
-                aria-label="Fatigue level"
-                onChange={(event) => setFatigue(event.target.value as FatigueLevel)}
-              >
-                {FATIGUE_TABLE.map((row) => (
-                  <option key={row.level} value={row.level}>
-                    {row.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="ghost step"
-                disabled={fatigue.level === "dead"}
-                aria-label={`Worsen Fatigue for ${combatant.name}`}
-                onClick={() => setFatigue(worsenFatigue(combatant.fatigue))}
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          {/*
-            The table's five columns, split by what this tracker can enforce.
-            Initiative and Action Points are applied to the numbers above; the
-            other three are shown because a GM needs them at the table, and a
-            penalty the tracker silently forgets is worse than one it prints.
-          */}
-          {fatigue.level !== "fresh" && (
-            <div className="fatigue-effects">
-              <span className="settings-caption">{fatigue.name}</span>
-
-              {/*
-                Past Incapacitated the table stops printing penalties, so both
-                numbers read as zero. Showing "No penalty" there would say the
-                combatant is fine; the dash defers to the halt line below.
-              */}
-              <dl className="fatigue-applied">
-                <div>
-                  <dt>Initiative</dt>
-                  <dd>
-                    {!fatigue.canAct
-                      ? "—"
-                      : fatigue.initiativeModifier === 0
-                        ? "No penalty"
-                        : `${fatigue.initiativeModifier} → ${effectiveInitiative(combatant)}`}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Action Points</dt>
-                  <dd>
-                    {!fatigue.canAct
-                      ? "—"
-                      : fatigue.actionPointsModifier === 0
-                        ? "No penalty"
-                        : `${fatigue.actionPointsModifier} → ${effectiveMaxActionPoints(combatant)} max`}
-                  </dd>
-                </div>
-              </dl>
-
-              {!fatigue.canAct && <p className="fatigue-halt">No activity possible</p>}
-
-              <dl className="fatigue-manual">
-                <div>
-                  <dt>Skills</dt>
-                  <dd>{DIFFICULTY_LABEL[fatigue.difficulty] ?? fatigue.difficulty}</dd>
-                </div>
-                <div>
-                  <dt>Movement</dt>
-                  <dd>{fatigue.movement}</dd>
-                </div>
-                <div>
-                  <dt>Recovery</dt>
-                  <dd>{fatigue.recovery ?? "—"}</dd>
-                </div>
-              </dl>
-              <p className="fatigue-note">Skills, movement and recovery are yours to apply.</p>
-            </div>
-          )}
-
-          {selected && (
+          {selectedLocation && (
             <div className="settings-location">
-              <span className="settings-caption">{selected.name}</span>
+              <span className="settings-caption">{selectedLocation.name}</span>
 
               {/* Not floored at zero: below it is where Serious and Major wounds live. */}
               <label>
                 HP
                 <input
                   type="number"
-                  max={selected.maxHitPoints}
-                  value={selected.hitPoints}
+                  max={selectedLocation.maxHitPoints}
+                  value={selectedLocation.hitPoints}
                   onChange={(event) =>
                     dispatch({
                       type: "location/hitPointsChanged",
                       combatantId: combatant.id,
-                      locationId: selected.id,
+                      locationId: selectedLocation.id,
                       hitPoints: Number(event.target.value),
                     })
                   }
@@ -876,12 +1003,12 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
                 <input
                   type="number"
                   min={1}
-                  value={selected.maxHitPoints}
+                  value={selectedLocation.maxHitPoints}
                   onChange={(event) =>
                     dispatch({
                       type: "location/maxHitPointsChanged",
                       combatantId: combatant.id,
-                      locationId: selected.id,
+                      locationId: selectedLocation.id,
                       maxHitPoints: Number(event.target.value),
                     })
                   }
@@ -893,12 +1020,12 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
                 <input
                   type="number"
                   min={0}
-                  value={selected.armorPoints}
+                  value={selectedLocation.armorPoints}
                   onChange={(event) =>
                     dispatch({
                       type: "location/armorChanged",
                       combatantId: combatant.id,
-                      locationId: selected.id,
+                      locationId: selectedLocation.id,
                       armorPoints: Number(event.target.value),
                     })
                   }

@@ -7,7 +7,9 @@ import {
   currentTurn,
   effectiveMaxLuckPoints,
   effectiveMaxMagicPoints,
+  effectiveMovement,
   effectiveMovementRate,
+  gaitGradeShift,
   reduce,
   turnStatus,
   type CombatEvent,
@@ -16,7 +18,7 @@ import { rollInitiative } from "./dice";
 import { buildLocations, HUMANOID_PROFILE, locationForRoll } from "./locations";
 import { actionPointsFor, hitPointsFor, initiativeBonusFor, initiativePenaltyFor } from "./tables";
 import { createEmptyState, type Combatant, type CombatState } from "./types";
-import { applyDamage, previewDamage, woundLevel, worstWound } from "./wounds";
+import { applyDamage, previewDamage, previewWeaponDamage, woundLevel, worstWound } from "./wounds";
 
 function makeCombatant(overrides: Partial<Combatant> & Pick<Combatant, "id">): Combatant {
   return {
@@ -710,5 +712,77 @@ describe("Passions on a combatant", () => {
     expect(find(state, "hero-again").passions).toEqual([
       { name: "Loyalty to the Watch", value: 57 },
     ]);
+  });
+});
+
+describe("damaging a weapon", () => {
+  const rapier = { name: "Rapier", armorPoints: 5, hitPoints: 8, maxHitPoints: 8 };
+
+  /** Armour first, the same as a hit location. */
+  it("subtracts the weapon's Armour Points before its Hit Points", () => {
+    const preview = previewWeaponDamage(rapier, 7);
+    expect(preview.absorbed).toBe(5);
+    expect(preview.mitigated).toBe(2);
+    expect(preview.hitPointsAfter).toBe(6);
+    expect(preview.broken).toBe(false);
+  });
+
+  it("absorbs a blow that cannot get through at all", () => {
+    expect(previewWeaponDamage(rapier, 4)).toMatchObject({ hitPointsAfter: 8, absorbed: 4 });
+  });
+
+  it("ignores armour when told to", () => {
+    expect(previewWeaponDamage(rapier, 7, { ignoreArmor: true }).hitPointsAfter).toBe(1);
+  });
+
+  /** A weapon is usable or broken; it has no wound levels and no negatives. */
+  it("stops at zero and calls that broken", () => {
+    const preview = previewWeaponDamage(rapier, 40);
+    expect(preview.hitPointsAfter).toBe(0);
+    expect(preview.broken).toBe(true);
+  });
+
+  it("treats a weapon with no armour as unprotected", () => {
+    const stick = { name: "Stick", hitPoints: 3, maxHitPoints: 3 };
+    expect(previewWeaponDamage(stick, 2).hitPointsAfter).toBe(1);
+  });
+});
+
+describe("the gait a combatant is moving at", () => {
+  const runner = () => makeCombatant({ id: "hero", movementRate: 6 });
+
+  it("defaults to a Walk and covers the base rate", () => {
+    expect(effectiveMovement(runner())).toBe(6);
+    expect(gaitGradeShift(runner())).toBe(0);
+  });
+
+  it("multiplies the distance and costs the roll grades", () => {
+    const state = play(reduce(createEmptyState(), added(runner())), {
+      type: "combatant/gaitChanged",
+      combatantId: "hero",
+      gait: "sprint",
+    });
+    expect(effectiveMovement(find(state, "hero"))).toBe(30);
+    expect(gaitGradeShift(find(state, "hero"))).toBe(2);
+  });
+
+  /** Fatigue halves the rate, and the gait multiplies what is left of it. */
+  it("multiplies the rate Fatigue has already reduced", () => {
+    const state = play(
+      reduce(createEmptyState(), added(runner())),
+      { type: "combatant/gaitChanged", combatantId: "hero", gait: "sprint" },
+      { type: "combatant/fatigueChanged", combatantId: "hero", fatigue: "exhausted" },
+    );
+    expect(effectiveMovement(find(state, "hero"))).toBe(15);
+  });
+
+  it("keeps the gait when the combatant leaves and comes back", () => {
+    const state = play(
+      reduce(createEmptyState(), added({ ...runner(), tokenId: "token-1" })),
+      { type: "combatant/gaitChanged", combatantId: "hero", gait: "run" },
+      { type: "combatant/removed", combatantId: "hero" },
+      added(makeCombatant({ id: "hero-again", tokenId: "token-1" })),
+    );
+    expect(find(state, "hero-again").gait).toBe("run");
   });
 });

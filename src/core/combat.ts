@@ -1,6 +1,7 @@
 import { applyDamage, applyHealing, type DamageOptions } from "./wounds";
 import { deriveAttributes, type Characteristics } from "./characteristics";
 import { applyMovementEffect, fatigueRow, type FatigueLevel } from "./fatigue";
+import { gaitRow, movementForGait, type Gait } from "./movement";
 import { hitPointsFor, type BodyPart } from "./tables";
 import {
   SCHEMA_VERSION,
@@ -66,6 +67,14 @@ export type CombatEvent =
   | { type: "players/seen"; players: KnownPlayer[] }
   | { type: "combatant/defeatedToggled"; combatantId: string }
   | { type: "combatant/fatigueChanged"; combatantId: string; fatigue: FatigueLevel }
+  /**
+   * How fast the combatant is moving.
+   *
+   * On the combatant rather than in the roll window, because two surfaces read
+   * it — the distances in the panel and the grade shift on a roll — and a fact
+   * about the fight should not live inside a dialog.
+   */
+  | { type: "combatant/gaitChanged"; combatantId: string; gait: Gait }
   | {
       type: "combatant/characteristicsChanged";
       combatantId: string;
@@ -202,6 +211,20 @@ export function currentMagicPoints(combatant: Combatant): number {
 export function effectiveMovementRate(combatant: Combatant): number | null {
   if (combatant.movementRate === undefined) return null;
   return applyMovementEffect(combatant.movementRate, fatigueRow(combatant.fatigue).movementEffect);
+}
+
+/**
+ * Distance covered this Turn: the Movement Rate after Fatigue, at the gait the
+ * combatant is moving at. `null` when nobody imported a rate.
+ */
+export function effectiveMovement(combatant: Combatant): number | null {
+  const rate = effectiveMovementRate(combatant);
+  return rate === null ? null : movementForGait(rate, combatant.gait ?? "walk");
+}
+
+/** The Difficulty Grade shift the current gait costs a roll. */
+export function gaitGradeShift(combatant: Combatant): number {
+  return gaitRow(combatant.gait).gradeShift;
 }
 
 /**
@@ -397,6 +420,7 @@ function toStoredCharacter(combatant: Combatant): StoredCharacter {
     ...(combatant.magicPoints !== undefined ? { magicPoints: combatant.magicPoints } : {}),
     ...(combatant.maxMagicPoints !== undefined ? { maxMagicPoints: combatant.maxMagicPoints } : {}),
     ...(combatant.movementRate !== undefined ? { movementRate: combatant.movementRate } : {}),
+    ...(combatant.gait ? { gait: combatant.gait } : {}),
     ...(combatant.weapons ? { weapons: combatant.weapons } : {}),
     ...(combatant.spells ? { spells: combatant.spells } : {}),
     ...(combatant.passions ? { passions: combatant.passions } : {}),
@@ -491,6 +515,7 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
             ? { maxMagicPoints: stored.maxMagicPoints }
             : {}),
           ...(stored.movementRate !== undefined ? { movementRate: stored.movementRate } : {}),
+          ...(stored.gait ? { gait: stored.gait } : {}),
           ...(stored.weapons ? { weapons: stored.weapons } : {}),
           ...(stored.spells ? { spells: stored.spells } : {}),
           ...(stored.passions ? { passions: stored.passions } : {}),
@@ -647,6 +672,12 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
           0,
           Math.min(effectiveMaxActionPoints(combatant), combatant.actionPoints + event.delta),
         ),
+      }));
+
+    case "combatant/gaitChanged":
+      return updateCombatant(state, event.combatantId, (combatant) => ({
+        ...combatant,
+        gait: event.gait,
       }));
 
     case "luckPoints/changed":

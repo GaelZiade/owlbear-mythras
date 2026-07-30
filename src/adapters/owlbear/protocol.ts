@@ -50,6 +50,8 @@ const PLAYER_EDITABLE_EVENTS = new Set<CombatEvent["type"]>([
    * themselves — the GM may edit anyone.
    */
   "combatant/fatigueChanged",
+  /** How fast you are moving is your own call, and it costs your own rolls. */
+  "combatant/gaitChanged",
   /**
    * Characteristics are the sheet itself — the numbers a player rolls or buys
    * at creation and the Attributes come from. Nothing sits further inside the

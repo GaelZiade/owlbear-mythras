@@ -10,6 +10,7 @@
 
 import type { Characteristics } from "./characteristics";
 import type { FatigueLevel } from "./fatigue";
+import type { Gait } from "./movement";
 
 /** Version of the persisted state. Changing the model means bumping this and adding a migration. */
 export const SCHEMA_VERSION = 3;
@@ -109,6 +110,16 @@ export interface Combatant {
    * importers carried it already and both used to drop it on the floor.
    */
   movementRate?: number;
+  /**
+   * How fast the combatant is currently moving, absent meaning a Walk.
+   *
+   * State rather than a control in the roll window, because it is a fact about
+   * the combatant that several things read: the distances in the panel, and the
+   * Difficulty Grade a roll is shifted by. Choosing to sprint is something you
+   * do on the tracker and then live with, not something you re-declare inside
+   * every dialog that happens to care.
+   */
+  gait?: Gait;
   /** Weapons carried, absent when none were imported. */
   weapons?: Weapon[];
   /** Spells known, absent when none were imported. */
@@ -275,6 +286,7 @@ export interface StoredCharacter {
   magicPoints?: number;
   maxMagicPoints?: number;
   movementRate?: number;
+  gait?: Gait;
   /** Kept broken, for the same reason wounds are kept whole. */
   weapons?: Weapon[];
   spells?: Spell[];

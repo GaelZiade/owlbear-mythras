@@ -37,6 +37,16 @@ export interface RollContext {
   /** Fatigue's own difficulty grade, so the window need not know about combat. */
   fatigueGrade: string | null;
   fatigueName: string;
+  /**
+   * The gait set on the tracker, and what it costs a roll.
+   *
+   * Handed over rather than chosen here. Whether you are sprinting is a fact
+   * about the fight that the panel already holds and shows distances for;
+   * re-declaring it inside the roll dialog would be two places to set one thing,
+   * and the one you forget is the one that is wrong.
+   */
+  gaitName?: string;
+  gaitShift?: number;
 }
 
 export function writeRollContext(context: RollContext): void {
