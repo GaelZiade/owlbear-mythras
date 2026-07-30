@@ -125,6 +125,24 @@ export function modifiedSkill(
 }
 
 /**
+ * What a Passion adds to a skill it augments.
+ *
+ * *"The Passion adds 20% of its value to a skill being used, as long as the
+ * augmentation is thematically and dramatically important."* Twenty per cent
+ * **of the Passion's value**, not a flat twenty — a Passion of 57 is worth 12,
+ * and a Passion of 90 is worth 18.
+ *
+ * No roll. Imperative's augment is a flat addition the moment the Games Master
+ * agrees it applies, which is why nothing here takes a die. Whether it applies
+ * is the one part that stays at the table.
+ *
+ * Rounds up, on the book's general rule.
+ */
+export function augmentFrom(passionValue: number): number {
+  return Math.ceil(Math.max(0, passionValue) / 5);
+}
+
+/**
  * The highest roll that criticals.
  *
  * *"Un éxito Crítico es igual a una décima parte del valor de la Habilidad… y

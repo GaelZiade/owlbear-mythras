@@ -280,6 +280,43 @@ restriction is printed rather than enforced. Which action is being attempted is 
 decision at the table, and the errata's own exceptions — charging, Skirmishing
 weapons — are exactly the kind of judgement this extension leaves alone.
 
+### 1.13 Passions augment, and where the augment lands is ours
+
+*"The Passion adds 20% of its value to a skill being used, as long as the
+augmentation is thematically and dramatically important."*
+
+Twenty per cent **of the Passion**, not a flat twenty. This project had it wrong
+from memory before the SRD arrived: a Passion of 57 is worth 12, not 20. No roll
+either — Imperative's augment is a flat addition the moment the Games Master
+agrees it applies, which is why nothing in `augmentFrom` takes a die. Whether it
+applies stays at the table, which is why the control defaults to None.
+
+**What the book does not settle is the order**, and the choice changes the
+number. With Athletics 51, a Passion of 57 and a Hard grade:
+
+- Passion first: (51 + 12) reduced by a third → **42**
+- Grade first: 51 reduced by a third, then + 12 → **46**
+
+Ours is Passion first. A Passion is part of what the character brings; the grade
+is what the world does to the attempt. It also has the property that a Passion is
+never worth less because the task is hard, which the other order produces and
+which reads backwards for a rule about conviction carrying you through.
+
+This is the same shape as §1.12's ordering: what the character *is* resolves
+first, then the circumstances scale it.
+
+Passions are stored apart from skills rather than as a flagged skill. The book is
+pointed about it — *"to call them skills is to do them a disservice"* — and the
+practical half is that "Hate (Stygians)" must never appear in a list somebody is
+scrolling to find a combat style.
+
+The builder stores a Passion's value as a sentence: `"30% plus Character's
+POW+INT"`. It is computed here rather than copied, the same as skills, and the
+match on Characteristic names is **case-sensitive on purpose** — a
+case-insensitive one finds `CHA` inside `Character's` and silently adds it to
+every Passion on every sheet, plausibly enough that nobody would question the
+total.
+
 ---
 
 ## 2. Functional decisions (made by the project owner)

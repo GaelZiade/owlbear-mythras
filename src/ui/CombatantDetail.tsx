@@ -15,6 +15,7 @@ import {
 } from "../core/combat";
 import { deriveAttributes } from "../core/characteristics";
 import { GAIT_TABLE, movementForGait } from "../core/movement";
+import { augmentFrom } from "../core/rolls";
 import {
   FATIGUE_TABLE,
   fatigueRow,
@@ -236,7 +237,8 @@ function Resources({ combatant, editable }: { combatant: Combatant; editable: bo
 function Kit({ combatant, editable }: { combatant: Combatant; editable: boolean }) {
   const weapons = combatant.weapons ?? [];
   const spells = combatant.spells ?? [];
-  if (weapons.length === 0 && spells.length === 0) return null;
+  const passions = combatant.passions ?? [];
+  if (weapons.length === 0 && spells.length === 0 && passions.length === 0) return null;
 
   const traditions = [...new Set(spells.map((spell) => spell.tradition ?? "Spells"))];
 
@@ -302,6 +304,24 @@ function Kit({ combatant, editable }: { combatant: Combatant; editable: boolean 
                 </span>
               )}
               {weapon.effects && <span className="weapon-effects">{weapon.effects}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/*
+        With what each is worth as an augment, since that is what a Passion is
+        for most of the time and 20% of 57 is not a sum anybody does mid-fight.
+        The percentage is still shown, because a Passion is also rolled on its
+        own — the roll window lists them for that.
+      */}
+      {passions.length > 0 && (
+        <ul className="passions">
+          {passions.map((passion) => (
+            <li key={passion.name} className="passion">
+              <span className="passion-name">{passion.name}</span>
+              <span className="passion-augment dim">+{augmentFrom(passion.value)}</span>
+              <span className="passion-value">{passion.value}%</span>
             </li>
           ))}
         </ul>
@@ -594,6 +614,7 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
                   skills: combatant.skills ?? [],
                   fatigueGrade: fatigue.difficulty === "none" ? null : fatigue.difficulty,
                   fatigueName: fatigue.name,
+                  ...(combatant.passions ? { passions: combatant.passions } : {}),
                 })
               }
             >

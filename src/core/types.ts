@@ -113,6 +113,8 @@ export interface Combatant {
   weapons?: Weapon[];
   /** Spells known, absent when none were imported. */
   spells?: Spell[];
+  /** Passions held, absent when none were imported. */
+  passions?: Passion[];
   /**
    * Fatigue level, absent meaning Fresh.
    *
@@ -222,6 +224,21 @@ export interface Weapon {
   effects?: string;
 }
 
+/**
+ * A Passion.
+ *
+ * Shaped like a skill and deliberately not one: *"Although they can be used as
+ * stand-alone Abilities (to call them skills is to do them a disservice)."* They
+ * are rated 1-100 and rolled the same way, but they live apart because what they
+ * do is different — a Passion augments other rolls, and the interface should
+ * never offer "Hate (Stygians)" in a list of things to pick a combat style from.
+ */
+export interface Passion {
+  /** The whole phrase, verb and object: "Loyalty to the Night's Watch". */
+  name: string;
+  value: number;
+}
+
 /** A spell, filed under the tradition its source listed it in. */
 export interface Spell {
   name: string;
@@ -261,6 +278,7 @@ export interface StoredCharacter {
   /** Kept broken, for the same reason wounds are kept whole. */
   weapons?: Weapon[];
   spells?: Spell[];
+  passions?: Passion[];
   /** Kept whole, wounds included: someone pulled out of a fight is still hurt. */
   locations: HitLocation[];
 }

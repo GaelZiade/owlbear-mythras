@@ -263,3 +263,47 @@ describe("weapons, spells and movement from the builder", () => {
     ]);
   });
 });
+
+describe("Passions", () => {
+  it("works the value out of the builder's sentence", () => {
+    // "30% plus Character's POW+INT", with POW 14 and INT 13.
+    expect(jon.passions).toEqual([{ name: "Loyalty to the Knight's Watch", value: 57 }]);
+  });
+
+  /**
+   * The trap this nearly walked into: a case-insensitive search for the
+   * Characteristics finds CHA inside "Character's", which would add CHA to
+   * every Passion on every sheet and look plausible enough to go unnoticed.
+   */
+  it("does not find CHA inside the word Character's", () => {
+    const { value } = parseSheet({
+      ...jonSnow,
+      passions: [{ passion: "Fear (Wights)", modifier: "20% plus Character's POW+INT" }],
+    });
+    // POW 14 + INT 13 + 20 = 47. With CHA 13 wrongly added it would be 60.
+    expect(value!.passions[0]!.value).toBe(47);
+  });
+
+  it("doubles a single Characteristic where the table says x2", () => {
+    const { value } = parseSheet({
+      ...jonSnow,
+      passions: [{ passion: "Hate (Wildlings)", modifier: "40% plus Character's POW x2" }],
+    });
+    expect(value!.passions[0]!.value).toBe(68); // POW 14 doubled, plus 40
+  });
+
+  it("keeps a Passion it cannot value, and says so", () => {
+    const { value, problems } = parseSheet({
+      ...jonSnow,
+      passions: [{ passion: "Desire (Nothing in particular)", modifier: "who knows" }],
+    });
+    expect(value!.passions).toEqual([{ name: "Desire (Nothing in particular)", value: 0 }]);
+    expect(problems.some((problem) => problem.includes("Desire"))).toBe(true);
+  });
+
+  it("leaves passions off a character with none", () => {
+    const { passions: _none, ...withoutPassions } = jonSnow as Record<string, unknown>;
+    const { value } = parseSheet(withoutPassions);
+    expect(combatantFromSheet(value!, "c-1").passions).toBeUndefined();
+  });
+});

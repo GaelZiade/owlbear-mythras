@@ -1,6 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 
-import type { Skill } from "../../core/types";
+import type { Passion, Skill } from "../../core/types";
 
 /**
  * Opening the roll window.
@@ -26,6 +26,14 @@ const HANDOFF_KEY = "rodeo.owlbear.mythras/roll-context";
 export interface RollContext {
   name: string;
   skills: Skill[];
+  /**
+   * Passions, which augment a roll rather than being one.
+   *
+   * Handed over with the skills because the augment has to update the target
+   * live, and a window that had to go and look them up would be back to reading
+   * the room — which is what §5h took it out of.
+   */
+  passions?: Passion[];
   /** Fatigue's own difficulty grade, so the window need not know about combat. */
   fatigueGrade: string | null;
   fatigueName: string;

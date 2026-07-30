@@ -690,3 +690,25 @@ describe("Movement Rate and weapons", () => {
     expect(back.movementRate).toBe(6);
   });
 });
+
+describe("Passions on a combatant", () => {
+  it("keeps them when the combatant leaves and comes back", () => {
+    const state = play(
+      reduce(
+        createEmptyState(),
+        added(
+          makeCombatant({
+            id: "hero",
+            tokenId: "token-1",
+            passions: [{ name: "Loyalty to the Watch", value: 57 }],
+          }),
+        ),
+      ),
+      { type: "combatant/removed", combatantId: "hero" },
+      added(makeCombatant({ id: "hero-again", tokenId: "token-1" })),
+    );
+    expect(find(state, "hero-again").passions).toEqual([
+      { name: "Loyalty to the Watch", value: 57 },
+    ]);
+  });
+});

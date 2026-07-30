@@ -6,6 +6,7 @@ import { GAIT_TABLE, gaitRow, harderBy, type Gait } from "../core/movement";
 import {
   DIFFICULTY_TABLE,
   hardestGrade,
+  augmentFrom,
   modifiedSkill,
   rollRanges,
   rollSkill,
@@ -68,10 +69,12 @@ export function RollWindow() {
   const [skillName, setSkillName] = useState<string | null>(null);
   const [grade, setGrade] = useState<DifficultyGrade>("standard");
   const [gait, setGait] = useState<Gait>("walk");
+  const [passionName, setPassionName] = useState<string | null>(null);
   const [result, setResult] = useState<RollResult | null>(null);
 
   if (!context) return <p className="notice">Nothing to roll. Open this from a combatant.</p>;
 
+  const passions = context.passions ?? [];
   const skills = context.skills;
   if (skills.length === 0) return <p className="notice">{context.name} has no skills on file.</p>;
 
@@ -92,8 +95,22 @@ export function RollWindow() {
    */
   const situational = hardestGrade(fatigueGrade ? [grade, fatigueGrade] : [grade]);
   const applied = harderBy(situational, gaitRow(gait).gradeShift);
-  const target = modifiedSkill(skill.value, applied, METHOD);
-  const ranges = rollRanges(skill.value, applied, METHOD);
+
+  /*
+   * The augment lands on the skill, before the grade touches it.
+   *
+   * The book does not settle the order — it says only that the Passion "adds 20%
+   * of its value to a skill being used". Ours is that a Passion is part of what
+   * the character brings, and the grade is what the world does to the attempt, so
+   * the Passion goes in first and the difficulty scales the total. It also has
+   * the property that a Passion is never worth less because the task is hard,
+   * which the other order would produce.
+   */
+  const passion = passions.find(({ name }) => name === passionName) ?? null;
+  const augment = passion ? augmentFrom(passion.value) : 0;
+  const augmented = skill.value + augment;
+  const target = modifiedSkill(augmented, applied, METHOD);
+  const ranges = rollRanges(augmented, applied, METHOD);
 
   const matches = skills.filter(({ name }) =>
     name.toLowerCase().includes(query.trim().toLowerCase()),
@@ -180,6 +197,32 @@ export function RollWindow() {
           </select>
         </label>
 
+        {/*
+          Only on screen when there are Passions to pick, because a character
+          with none should not meet an empty control. "None" first: augmenting
+          needs the Games Master to agree it is thematically important, so it is
+          the deliberate choice rather than the default.
+        */}
+        {passions.length > 0 && (
+          <label className="roll-grade">
+            Augment
+            <select
+              value={passionName ?? ""}
+              onChange={(event) => {
+                setPassionName(event.target.value === "" ? null : event.target.value);
+                setResult(null);
+              }}
+            >
+              <option value="">None</option>
+              {passions.map((entry) => (
+                <option key={entry.name} value={entry.name}>
+                  {entry.name} ({entry.value}%) — +{augmentFrom(entry.value)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         {applied !== grade && (
           <p className="roll-note">
             {[
@@ -209,6 +252,7 @@ export function RollWindow() {
           <span className="dim">
             {" "}
             from {skill.value}
+            {augment > 0 && ` +${augment} ${passion!.name}`}
             {applied === "hopeless" ? " · cannot be attempted" : ""}
             {applied === "automatic" ? " · no roll needed" : ""}
           </span>
@@ -237,7 +281,7 @@ export function RollWindow() {
         <button
           type="button"
           className="apply"
-          onClick={() => setResult(rollSkill(skill.value, applied, METHOD))}
+          onClick={() => setResult(rollSkill(augmented, applied, METHOD))}
         >
           Roll d100
         </button>

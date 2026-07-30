@@ -52,6 +52,9 @@ initiative by Cycles, Action Points, Fatigue, and wounds by hit location.
 - **Weapons** as reference — damage, size, reach and the Special Effects they
   grant — with Armour and Hit Points tracked, because parrying is how a weapon
   breaks. **Spells** listed beside the Magic Points that cast them.
+- **Passions**, worked out from the sheet's own formula, with what each is worth
+  as an augment. Pick one while rolling and the target and both ranges move with
+  it — the augment is 20% *of the Passion*, so a Passion of 57 is worth 12.
 - **Sheets survive leaving the fight.** Remove somebody from the tracker and add
   their token again: Characteristics, armour, owner, wounds and notes come back.
 - **Out of the fight** toggle that skips a combatant in the initiative order.
@@ -187,10 +190,10 @@ Done:
    a combatant leaves the fight.
 6. **Movement, weapons and spells** — everything both importers already carried
    and used to drop.
+7. **Passions**, and using one to augment a roll.
 
-Next, in order:
+Next:
 
-7. **Passions**, including using one to augment a roll.
 8. **A glossary** of combat actions, Special Effects and situational modifiers,
    linked from the sheet where it applies and searchable where it does not.
 

@@ -399,6 +399,7 @@ function toStoredCharacter(combatant: Combatant): StoredCharacter {
     ...(combatant.movementRate !== undefined ? { movementRate: combatant.movementRate } : {}),
     ...(combatant.weapons ? { weapons: combatant.weapons } : {}),
     ...(combatant.spells ? { spells: combatant.spells } : {}),
+    ...(combatant.passions ? { passions: combatant.passions } : {}),
   };
 }
 
@@ -492,6 +493,7 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
           ...(stored.movementRate !== undefined ? { movementRate: stored.movementRate } : {}),
           ...(stored.weapons ? { weapons: stored.weapons } : {}),
           ...(stored.spells ? { spells: stored.spells } : {}),
+          ...(stored.passions ? { passions: stored.passions } : {}),
         };
         return { ...merged, initiative: 0, actionPoints: effectiveMaxActionPoints(merged) };
       });

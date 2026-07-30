@@ -28,7 +28,7 @@ tracks resources; the rules live with the people playing.
 
 | Command | What it does |
 |---|---|
-| `npm test` | Vitest. 339 tests, all of `core/` and the adapters |
+| `npm test` | Vitest. 350 tests, all of `core/` and the adapters |
 | `npm run typecheck` | `tsc --noEmit`. `exactOptionalPropertyTypes` is on |
 | `npm run dev` | Dev server for use inside Owlbear (port 5173, pinned) |
 | `npm run dev:mock` | Stubbed SDK on 5174, viewable in a plain browser tab |
@@ -126,7 +126,8 @@ location, undo); Characteristics and every derived Attribute; Fatigue; skill
 rolls in a floating window with difficulty grades, criticals, fumbles and the
 ranges shown before the die; Luck and Magic Points as spendable pools with
 Desperate Effort; Movement Rate with Fatigue and gaits applied to it; weapons as reference
-with breakable Hit Points; spell lists; import from MEG, from a sheet builder's
+with breakable Hit Points; spell lists; Passions and the augment they give a roll;
+import from MEG, from a sheet builder's
 JSON, and by hand; token linking with sheets that survive leaving the fight;
 compressed persistence.
 
@@ -136,10 +137,9 @@ compressed persistence.
    without opening the editor.~~ Done.
 2. ~~Import what is already parsed and thrown away — Movement Rate, weapon
    Armour and Hit Points, spell lists.~~ Done.
-3. **Passions** — import them, then use one to augment a roll, updating the
-   target and both ranges live. The augment adds **20% of the Passion's value**,
-   not a flat 20, and the book does not say whether it lands before or after the
-   Difficulty Grade — that is ours to decide and record.
+3. ~~Passions — import them, then use one to augment a roll.~~ Done. The augment
+   adds 20% *of the Passion's value*, lands before the Difficulty Grade (ours to
+   decide; §1.13), and takes no roll.
 4. **A glossary** of combat actions, Special Effects and situational modifiers,
    linked from the sheet where it is relevant and searchable where it is not.
    All ORC material, so legally fine; it is static content and does not touch the

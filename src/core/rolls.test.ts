@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { fatigueRow } from "./fatigue";
 import {
+  augmentFrom,
   criticalThreshold,
   DIFFICULTY_GRADES,
   DIFFICULTY_TABLE,
@@ -305,5 +306,46 @@ describe("the ranges shown before the die", () => {
         expect(inFumble).toBe(outcome === "fumble");
       }
     }
+  });
+});
+
+describe("augmenting with a Passion", () => {
+  /**
+   * *"The Passion adds 20% of its value to a skill being used."* Twenty per cent
+   * **of the Passion**, not a flat twenty — the trap this project walked into
+   * from memory before the SRD arrived.
+   */
+  it("is a fifth of the Passion, not a flat twenty", () => {
+    expect(augmentFrom(100)).toBe(20);
+    expect(augmentFrom(57)).toBe(12);
+    expect(augmentFrom(30)).toBe(6);
+  });
+
+  it("rounds up, on the book's general rule", () => {
+    expect(augmentFrom(56)).toBe(12); // 11.2
+    expect(augmentFrom(51)).toBe(11); // 10.2
+  });
+
+  it("gives nothing away on a Passion of nothing", () => {
+    expect(augmentFrom(0)).toBe(0);
+    expect(augmentFrom(-10)).toBe(0);
+  });
+
+  /**
+   * The order the roll window applies them in: the Passion joins the skill, then
+   * the grade scales the total. Recorded because the book does not settle it.
+   */
+  it("is scaled by the difficulty, because it lands before the grade", () => {
+    const skill = 65;
+    const augmented = skill + augmentFrom(65);
+    expect(augmented).toBe(78);
+    expect(modifiedSkill(augmented, "standard")).toBe(78);
+    expect(modifiedSkill(augmented, "hard")).toBe(52);
+  });
+
+  /** And the critical range follows it, since that is a tenth of the target. */
+  it("widens the critical range with the target", () => {
+    expect(rollRanges(65, "standard").critical).toEqual([1, 7]);
+    expect(rollRanges(65 + augmentFrom(65), "standard").critical).toEqual([1, 8]);
   });
 });

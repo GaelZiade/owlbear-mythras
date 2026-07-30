@@ -5,7 +5,7 @@ import {
 } from "../../core/characteristics";
 import { buildLocations, HUMANOID_PROFILE } from "../../core/locations";
 import { initiativePenaltyFor } from "../../core/tables";
-import type { Combatant, HitLocation, Spell, Weapon } from "../../core/types";
+import type { Combatant, HitLocation, Passion, Spell, Weapon } from "../../core/types";
 
 /**
  * Reading a character out of the online sheet builder the group uses.
@@ -45,6 +45,7 @@ export interface SheetCharacter {
   movementRate: number | null;
   weapons: Weapon[];
   spells: Spell[];
+  passions: Passion[];
   notes: string | null;
 }
 
@@ -94,6 +95,58 @@ function weaponsFrom(equipment: Record<string, unknown>): Weapon[] {
           : {}),
       },
     ];
+  });
+}
+
+/**
+ * Passions, whose value the builder stores as a sentence.
+ *
+ * It writes `"30% plus Character's POW+INT"` — the starting bonus, then the pair
+ * of Characteristics from the book's Passion Table, or `"POW x2"` for the rows
+ * that double one. So the value is computed here the same way skills are, rather
+ * than copied.
+ *
+ * **The characteristic match is case-sensitive on purpose.** The source spells
+ * them in capitals and writes "Character's" in mixed case, and a case-insensitive
+ * search finds `CHA` inside `Character's` — which would silently add CHA to every
+ * Passion on every sheet, in a way that looks plausible enough never to be
+ * questioned.
+ */
+const CHARACTERISTIC_IN_TEXT = /\b(STR|CON|SIZ|DEX|INT|POW|CHA)\b/g;
+
+function passionValue(modifier: string, characteristics: Characteristics): number | null {
+  const found = [...modifier.matchAll(CHARACTERISTIC_IN_TEXT)].map(
+    (match) => characteristics[match[1] as Characteristic],
+  );
+  if (found.length === 0) return null;
+
+  const bonus = num(Number.parseInt(modifier, 10));
+  // "POW x2" doubles one Characteristic rather than summing two.
+  const doubled = /x\s*2/i.test(modifier) && found.length === 1;
+  const base = doubled ? found[0]! * 2 : found.reduce((total, value) => total + value, 0);
+  return base + bonus;
+}
+
+function passionsFrom(
+  payload: unknown,
+  characteristics: Characteristics,
+  problems: string[],
+): Passion[] {
+  if (!Array.isArray(payload)) return [];
+
+  return payload.flatMap((raw): Passion[] => {
+    if (!isRecord(raw)) return [];
+    const name = typeof raw.passion === "string" ? raw.passion.trim() : "";
+    if (name === "") return [];
+
+    const value = passionValue(typeof raw.modifier === "string" ? raw.modifier : "", characteristics);
+    if (value === null) {
+      // Kept at zero rather than dropped: a Passion nobody can roll is still one
+      // the character has, and a missing name is harder to notice than a zero.
+      problems.push(`Could not work out a value for “${name}”; set to 0.`);
+      return [{ name, value: 0 }];
+    }
+    return [{ name, value }];
   });
 }
 
@@ -284,6 +337,7 @@ export function parseSheet(payload: unknown): SheetParseResult {
       movementRate: typeof payload.movementRate === "number" ? payload.movementRate : null,
       weapons: weaponsFrom(equipment),
       spells: spellsFrom(payload.magic),
+      passions: passionsFrom(payload.passions, characteristics, problems),
       notes: typeof payload.concept === "string" && payload.concept !== "" ? payload.concept : null,
     },
     problems,
@@ -323,5 +377,6 @@ export function combatantFromSheet(sheet: SheetCharacter, id: string): Combatant
     ...(sheet.movementRate === null ? {} : { movementRate: sheet.movementRate }),
     ...(sheet.weapons.length > 0 ? { weapons: sheet.weapons } : {}),
     ...(sheet.spells.length > 0 ? { spells: sheet.spells } : {}),
+    ...(sheet.passions.length > 0 ? { passions: sheet.passions } : {}),
   };
 }
