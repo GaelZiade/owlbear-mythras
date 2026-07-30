@@ -1,10 +1,12 @@
 # Mythras for Owlbear Rodeo
 
 An open source extension that runs **Mythras** combat inside Owlbear Rodeo:
-initiative by Cycles, Action Points, and wounds by hit location.
+initiative by Cycles, Action Points, Fatigue, and wounds by hit location.
 
-> Status: phase 1 in development. See [DECISIONS.md](DECISIONS.md) for the design
-> and the decision log.
+> In use at a real table and not yet listed in the extension store. The design
+> and the reasoning behind it are in [DECISIONS.md](DECISIONS.md); the rules it
+> implements are in [`reference/`](reference/); [CLAUDE.md](CLAUDE.md) is the
+> orientation for anyone — or anything — picking the codebase up cold.
 
 ## What it does
 
@@ -35,9 +37,15 @@ initiative by Cycles, Action Points, and wounds by hit location.
 - **Link a combatant to a token** so an imported character follows the token its
   player moves, and a redrawn token finds its sheet again.
 - **Roll a skill** in a floating window of its own, against any of the eight
-  difficulty grades, with
-  criticals, fumbles and the automatic success and failure ranges applied.
-  Fatigue raises the grade on its own.
+  difficulty grades, with criticals, fumbles and the automatic success and
+  failure ranges applied. Fatigue raises the grade on its own.
+- **The critical and fumble ranges before the die**, updating as the grade
+  changes. The critical range is a tenth of the *modified* target, so it moves
+  with the difficulty — a skill of 51 criticals on 01-11 doubled and on 01 alone
+  at Herculean, which nobody works out mid-fight.
+- **Luck and Magic Points** as pools that are spent and refill, derived from POW
+  and never overwritten by hand. Out of Action Points, a Luck Point buys one back
+  — offered only where the rules offer it.
 - **Sheets survive leaving the fight.** Remove somebody from the tracker and add
   their token again: Characteristics, armour, owner, wounds and notes come back.
 - **Out of the fight** toggle that skips a combatant in the initiative order.
@@ -48,9 +56,10 @@ initiative by Cycles, Action Points, and wounds by hit location.
   down, the combatant is skipped entirely.
 - **Undo**, sitting next to Next turn — which is the button people misclick.
 - Each player edits their own combatant: Hit Points and Armor Points per
-  location, Action Points, Initiative, Initiative Bonus and Fatigue. The GM
-  controls everything, and everything about the fight itself — starting it,
-  advancing the turn, who is in it — stays with the GM alone.
+  location, Action Points, Initiative, Initiative Bonus, Fatigue, and their Luck
+  and Magic Points. The GM controls everything, and everything about the fight
+  itself — starting it, advancing the turn, who is in it — stays with the GM
+  alone.
 
 ## Development
 
@@ -121,9 +130,10 @@ host. If it will live under a subpath rather than a domain root, build with
 ```
 src/
   core/       Mythras rules. No SDK import anywhere, testable in plain Node.
-  adapters/   Owlbear integration: persistence, sync, tokens.
+  adapters/   Owlbear integration: persistence, sync, tokens. MEG and sheet import.
   ui/         React components.
   dev/        Stubbed SDK for `dev:mock`. Never shipped.
+reference/    The Imperative SRD. Every rule should trace to a line in it.
 ```
 
 The rule everything else rests on: **`core/` does not know Owlbear exists**. The
@@ -141,15 +151,41 @@ The consequence is that **with no GM connected, changes do not apply**. The
 interface says so. This is a deliberate trade: a frozen, visible fight beats two
 clients holding different truths.
 
+## What decides whether something gets built
+
+> Does this replace **a number the player would otherwise write on paper**, or
+> **a decision they would say out loud**?
+
+The first is tracked. The second is left alone. Owlbear Rodeo abstracts a
+battlefield and keeps count of things; the rules live with the people playing,
+and most of this table's dice are thrown in physical form anyway.
+
+So the tracker holds Action Points, Fatigue, wounds, Luck and Magic Points, and
+every value a player would otherwise be hunting for mid-fight — and it does not
+resolve opposed rolls, compare levels of success, pick Special Effects or roll
+damage. This is not Foundry and is not trying to be.
+
 ## Roadmap
 
-1. **Combat** — initiative, Cycles, Action Points, wounds by location. *(current)*
-2. **Creature import** from the [Mythras Encounter Generator](https://mythras.skoll.xyz/),
-   fetched live so the catalogue stays current as people add to it. Feasibility
-   and the rules for the integration are in [DECISIONS.md](DECISIONS.md#5-importing-from-the-mythras-encounter-generator-planned-phase-2).
-3. **Rolls** — done for skills: `core/rolls.ts` plus the dialog that drives it.
-   Opposed rolls and combat special effects are not modelled. *(current)*
-4. **Character sheets.**
+Done:
+
+1. **Combat** — initiative, Cycles, Action Points, wounds by location, undo.
+2. **Creature import** from the [Mythras Enemy Generator](https://mythras.skoll.xyz/),
+   fetched live so the catalogue stays current as people add to it.
+3. **Characteristics and derived Attributes**, and **Fatigue** across its ten
+   levels.
+4. **Skill rolls** in a window of their own, with the eight Difficulty Grades,
+   criticals, fumbles, and both ranges shown before the die is thrown.
+5. **Sheets** — imported from a builder's JSON, linked to tokens, and kept when
+   a combatant leaves the fight.
+
+Next, in order:
+
+6. **Import what is already parsed and dropped** — Movement Rate, weapon Armour
+   and Hit Points, spell lists.
+7. **Passions**, including using one to augment a roll.
+8. **A glossary** of combat actions, Special Effects and situational modifiers,
+   linked from the sheet where it applies and searchable where it does not.
 
 Bug reports and ideas are welcome in
 [Issues](https://github.com/GaelZiade/owlbear-mythras/issues).
