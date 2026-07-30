@@ -11,6 +11,7 @@ import {
   effectiveMaxActionPoints,
   effectiveMaxLuckPoints,
   effectiveMaxMagicPoints,
+  effectiveMovementRate,
 } from "../core/combat";
 import { deriveAttributes } from "../core/characteristics";
 import {
@@ -67,10 +68,11 @@ function Resources({ combatant, editable }: { combatant: Combatant; editable: bo
   const maxLuck = effectiveMaxLuckPoints(combatant);
   const maxMagic = effectiveMaxMagicPoints(combatant);
   const derived = combatant.characteristics ? deriveAttributes(combatant.characteristics) : null;
+  const movement = effectiveMovementRate(combatant);
 
-  // Nothing derived and no pools set: a plain combatant with no sheet behind it,
-  // where an empty block would be furniture.
-  if (maxLuck === 0 && maxMagic === 0 && !derived) return null;
+  // Nothing derived, no pools and no rate: a plain combatant with no sheet
+  // behind it, where an empty block would be furniture.
+  if (maxLuck === 0 && maxMagic === 0 && !derived && movement === null) return null;
 
   const spend = (type: "luckPoints/changed" | "magicPoints/changed", delta: number) =>
     dispatch({ type, combatantId: combatant.id, delta });
@@ -159,25 +161,145 @@ function Resources({ combatant, editable }: { combatant: Combatant; editable: bo
         </button>
       )}
 
-      {derived && (
+      {(derived || movement !== null) && (
         <dl className="resource-derived">
-          <div>
-            <dt>Damage mod.</dt>
-            <dd>{derived.damageModifier}</dd>
-          </div>
-          <div>
-            <dt>Healing rate</dt>
-            <dd>{derived.healingRate}</dd>
-          </div>
-          <div>
-            <dt>Exp. mod.</dt>
-            <dd>
-              {derived.experienceModifier >= 0 ? "+" : ""}
-              {derived.experienceModifier}
-            </dd>
-          </div>
+          {derived && (
+            <>
+              <div>
+                <dt>Damage mod.</dt>
+                <dd>{derived.damageModifier}</dd>
+              </div>
+              <div>
+                <dt>Healing rate</dt>
+                <dd>{derived.healingRate}</dd>
+              </div>
+              <div>
+                <dt>Exp. mod.</dt>
+                <dd>
+                  {derived.experienceModifier >= 0 ? "+" : ""}
+                  {derived.experienceModifier}
+                </dd>
+              </div>
+            </>
+          )}
+          {/*
+            Shown after Fatigue has been applied, with the sheet value beside it
+            when the two differ. An Exhausted character moving 3 rather than 6 is
+            arithmetic the tracker can do; leaving "Halved" on screen next to a
+            known rate would be making the player do it.
+          */}
+          {movement !== null && (
+            <div>
+              <dt>Movement</dt>
+              <dd>
+                {movement === 0 ? "Immobile" : `${movement} m`}
+                {movement !== combatant.movementRate && (
+                  <span className="dim"> of {combatant.movementRate}</span>
+                )}
+              </dd>
+            </div>
+          )}
         </dl>
       )}
+    </div>
+  );
+}
+
+/**
+ * Weapons and spells: reference, with one number that moves.
+ *
+ * Damage, size and reach are printed and left alone — the dice are thrown in
+ * physical form and read off the player's own sheet. Weapon Hit Points are the
+ * exception, because parrying is how a weapon breaks, so those get a stepper.
+ *
+ * Spells are a list because Magic Points are already a pool above: knowing what
+ * a caster can spend them on is the other half of tracking them.
+ */
+function Kit({ combatant, editable }: { combatant: Combatant; editable: boolean }) {
+  const weapons = combatant.weapons ?? [];
+  const spells = combatant.spells ?? [];
+  if (weapons.length === 0 && spells.length === 0) return null;
+
+  const traditions = [...new Set(spells.map((spell) => spell.tradition ?? "Spells"))];
+
+  return (
+    <div className="kit">
+      {weapons.length > 0 && (
+        <ul className="weapons">
+          {weapons.map((weapon) => (
+            <li key={weapon.name} className="weapon">
+              <span className="weapon-name">{weapon.name}</span>
+              <span className="weapon-stats">
+                {[weapon.damage, weapon.size, weapon.reach && `reach ${weapon.reach}`]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+              {weapon.maxHitPoints !== undefined && (
+                <span className="weapon-hp">
+                  {weapon.armorPoints !== undefined && (
+                    <span className="weapon-armor" title="Armor Points">
+                      {weapon.armorPoints}
+                    </span>
+                  )}
+                  {editable ? (
+                    <span className="resource-steps">
+                      <button
+                        type="button"
+                        className="ghost step"
+                        aria-label={`Damage ${weapon.name}`}
+                        disabled={(weapon.hitPoints ?? 0) === 0}
+                        onClick={() =>
+                          dispatch({
+                            type: "weapon/hitPointsChanged",
+                            combatantId: combatant.id,
+                            weapon: weapon.name,
+                            hitPoints: (weapon.hitPoints ?? 0) - 1,
+                          })
+                        }
+                      >
+                        −
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost step"
+                        aria-label={`Repair ${weapon.name}`}
+                        disabled={weapon.hitPoints === weapon.maxHitPoints}
+                        onClick={() =>
+                          dispatch({
+                            type: "weapon/hitPointsChanged",
+                            combatantId: combatant.id,
+                            weapon: weapon.name,
+                            hitPoints: (weapon.hitPoints ?? 0) + 1,
+                          })
+                        }
+                      >
+                        +
+                      </button>
+                    </span>
+                  ) : null}
+                  <span className={weapon.hitPoints === 0 ? "weapon-broken" : ""}>
+                    {weapon.hitPoints ?? weapon.maxHitPoints}
+                    <span className="dim">/{weapon.maxHitPoints}</span>
+                  </span>
+                </span>
+              )}
+              {weapon.effects && <span className="weapon-effects">{weapon.effects}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {traditions.map((tradition) => (
+        <div key={tradition} className="spells">
+          <span className="settings-caption">{tradition}</span>
+          <p className="spell-list">
+            {spells
+              .filter((spell) => (spell.tradition ?? "Spells") === tradition)
+              .map((spell) => spell.name)
+              .join(", ")}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -337,6 +459,8 @@ export function CombatantDetail({ combatant, session, editable }: Props) {
       </ul>
 
       <Resources combatant={combatant} editable={editable} />
+
+      <Kit combatant={combatant} editable={editable} />
 
       {/*
         Three inputs and an outcome, in the order the decision is actually made:

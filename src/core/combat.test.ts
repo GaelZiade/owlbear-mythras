@@ -7,6 +7,7 @@ import {
   currentTurn,
   effectiveMaxLuckPoints,
   effectiveMaxMagicPoints,
+  effectiveMovementRate,
   reduce,
   turnStatus,
   type CombatEvent,
@@ -618,5 +619,74 @@ describe("Desperate Effort", () => {
   it("refuses with no Luck Points left", () => {
     const state = play(spent(), { type: "luckPoints/changed", combatantId: "hero", delta: -3 });
     expect(canMakeDesperateEffort(find(state, "hero"))).toBe(false);
+  });
+});
+
+describe("Movement Rate and weapons", () => {
+  const armed = () =>
+    makeCombatant({
+      id: "hero",
+      movementRate: 6,
+      weapons: [
+        { name: "Rapier", damage: "1d8", armorPoints: 5, hitPoints: 8, maxHitPoints: 8 },
+        { name: "Buckler", damage: "1d3", armorPoints: 6, hitPoints: 9, maxHitPoints: 9 },
+      ],
+    });
+
+  it("applies Fatigue to the imported rate", () => {
+    const state = play(
+      reduce(createEmptyState(), added(armed())),
+      { type: "combatant/fatigueChanged", combatantId: "hero", fatigue: "exhausted" },
+    );
+    expect(effectiveMovementRate(find(state, "hero"))).toBe(3);
+    // The sheet's own rate is untouched, so recovery gives it back.
+    expect(find(state, "hero").movementRate).toBe(6);
+  });
+
+  /** Guessing six for something that might be a horse would be a made-up fact. */
+  it("reports nothing rather than a default when no rate was imported", () => {
+    expect(effectiveMovementRate(makeCombatant({ id: "plain" }))).toBeNull();
+  });
+
+  it("damages one weapon by name, leaving the rest alone", () => {
+    const state = play(reduce(createEmptyState(), added(armed())), {
+      type: "weapon/hitPointsChanged",
+      combatantId: "hero",
+      weapon: "Buckler",
+      hitPoints: 4,
+    });
+    const weapons = find(state, "hero").weapons!;
+    expect(weapons.find(({ name }) => name === "Buckler")!.hitPoints).toBe(4);
+    expect(weapons.find(({ name }) => name === "Rapier")!.hitPoints).toBe(8);
+  });
+
+  it("holds a weapon between zero and its own maximum", () => {
+    const broken = play(reduce(createEmptyState(), added(armed())), {
+      type: "weapon/hitPointsChanged",
+      combatantId: "hero",
+      weapon: "Rapier",
+      hitPoints: -3,
+    });
+    expect(broken.combatants[0]!.weapons![0]!.hitPoints).toBe(0);
+
+    const overrepaired = play(broken, {
+      type: "weapon/hitPointsChanged",
+      combatantId: "hero",
+      weapon: "Rapier",
+      hitPoints: 99,
+    });
+    expect(overrepaired.combatants[0]!.weapons![0]!.hitPoints).toBe(8);
+  });
+
+  it("keeps a broken weapon when the combatant leaves and comes back", () => {
+    const state = play(
+      reduce(createEmptyState(), added({ ...armed(), tokenId: "token-1" })),
+      { type: "weapon/hitPointsChanged", combatantId: "hero", weapon: "Rapier", hitPoints: 2 },
+      { type: "combatant/removed", combatantId: "hero" },
+      added(makeCombatant({ id: "hero-again", tokenId: "token-1" })),
+    );
+    const back = find(state, "hero-again");
+    expect(back.weapons!.find(({ name }) => name === "Rapier")!.hitPoints).toBe(2);
+    expect(back.movementRate).toBe(6);
   });
 });

@@ -211,6 +211,39 @@ Players may spend their own without asking. The book has a player burn a Luck
 Point in the middle of somebody else's action; routing that through the GM would
 put a person in the way of a decision the rules already gave to the player.
 
+### 1.11 What the importers used to throw away
+
+Three things were parsed and dropped, and each is a number a player would
+otherwise be hunting for mid-fight.
+
+**Movement Rate.** Both sources carry it and neither reached the combatant. It is
+not derived from anything — *"Movement is not calculated from Characteristics but
+is a default value which differs from species to species"* — so it is imported or
+it is absent, and absent stays absent rather than defaulting to a human's six for
+something that might be a horse.
+
+Importing it turned the Fatigue table's Movement column from words into
+arithmetic. That column used to be carried as a string because there was no rate
+to apply it to; it now carries a `MovementEffect` beside the string, and where a
+rate is known the panel shows what is left rather than "Halved". Halving rounds
+up, per the book's general rounding rule.
+
+**Weapons.** Damage, size and reach are reference — read off a sheet, thrown as
+real dice — and are carried as printed rather than parsed, because parsing
+`"1d8+1"` into structure would invite something to roll it, which the rule at the top says is not ours to do. Hit Points are the exception and the reason weapons
+are modelled at all: a parry puts the weapon in the way of the blow, so it takes
+damage and breaks. That is a number that moves during a fight.
+
+The two sources disagree about how to write the Special Effects a weapon grants —
+MEG writes `"Bleed, Impale"` and the builder writes `"Impale Street Brawler"` —
+so the string is stored as written. Splitting on spaces invents an effect called
+Street.
+
+**Spells.** MEG carries four lists and the builder carries four traditions, one of
+them a Path with three sub-lists. They are the other half of tracking Magic
+Points: a pool is only useful next to what it can be spent on. Read-only, since
+casting is a decision and its cost is a subtraction the player makes.
+
 ---
 
 ## 2. Functional decisions (made by the project owner)

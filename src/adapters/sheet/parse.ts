@@ -5,7 +5,7 @@ import {
 } from "../../core/characteristics";
 import { buildLocations, HUMANOID_PROFILE } from "../../core/locations";
 import { initiativePenaltyFor } from "../../core/tables";
-import type { Combatant, HitLocation } from "../../core/types";
+import type { Combatant, HitLocation, Spell, Weapon } from "../../core/types";
 
 /**
  * Reading a character out of the online sheet builder the group uses.
@@ -43,6 +43,8 @@ export interface SheetCharacter {
   initiativeModifier: number;
   skills: SheetSkill[];
   movementRate: number | null;
+  weapons: Weapon[];
+  spells: Spell[];
   notes: string | null;
 }
 
@@ -55,6 +57,85 @@ interface RawSkill {
   cultureBonus?: unknown;
   careerBonus?: unknown;
   extraBonus?: unknown;
+}
+
+/**
+ * Weapons out of the builder's equipment block.
+ *
+ * The builder splits damage across `oneHanded` and `twoHanded` because a weapon
+ * can be either; both are kept, joined, because which grip is in use is the
+ * player's decision and not something to guess at from a JSON file.
+ *
+ * `offensiveSkills` carries the Special Effects the weapon grants, space
+ * separated — `"Impale Street Brawler"`. It is stored as written rather than
+ * split, since splitting on spaces invents an effect called Street.
+ */
+function weaponsFrom(equipment: Record<string, unknown>): Weapon[] {
+  if (!Array.isArray(equipment.weapons)) return [];
+
+  return equipment.weapons.flatMap((raw): Weapon[] => {
+    if (!isRecord(raw) || typeof raw.name !== "string" || raw.name === "") return [];
+
+    const grips = [raw.oneHanded, raw.twoHanded].filter(
+      (grip): grip is string => typeof grip === "string" && grip !== "",
+    );
+    const hitPoints = typeof raw.hp === "number" ? Math.max(0, raw.hp) : undefined;
+
+    return [
+      {
+        name: raw.name,
+        ...(grips.length > 0 ? { damage: [...new Set(grips)].join(" / ") } : {}),
+        ...(typeof raw.size === "string" && raw.size !== "" ? { size: raw.size } : {}),
+        ...(typeof raw.reach === "string" && raw.reach !== "" ? { reach: raw.reach } : {}),
+        ...(typeof raw.ap === "number" ? { armorPoints: Math.max(0, raw.ap) } : {}),
+        ...(hitPoints === undefined ? {} : { hitPoints, maxHitPoints: hitPoints }),
+        ...(typeof raw.offensiveSkills === "string" && raw.offensiveSkills !== ""
+          ? { effects: raw.offensiveSkills }
+          : {}),
+      },
+    ];
+  });
+}
+
+/**
+ * Spells out of the builder's magic block.
+ *
+ * Four traditions, three of them plain lists of names and one — `path` — a
+ * shape of its own with augmentations, invocations and enhancements. Those three
+ * are read as Mysticism, which is the tradition the builder files a Path under.
+ */
+const SPELL_TRADITIONS = [
+  ["folk", "Folk"],
+  ["miracles", "Theism"],
+  ["sorcery", "Sorcery"],
+] as const;
+
+const PATH_LISTS = ["augmentations", "invocations", "enhancements"] as const;
+
+function spellNames(list: unknown): string[] {
+  if (!Array.isArray(list)) return [];
+  return list.flatMap((entry) => {
+    if (typeof entry === "string" && entry !== "") return [entry];
+    if (isRecord(entry) && typeof entry.name === "string" && entry.name !== "") return [entry.name];
+    return [];
+  });
+}
+
+function spellsFrom(magic: unknown): Spell[] {
+  if (!isRecord(magic)) return [];
+
+  const spells: Spell[] = SPELL_TRADITIONS.flatMap(([key, tradition]) =>
+    spellNames(magic[key]).map((name) => ({ name, tradition })),
+  );
+
+  const path = isRecord(magic.path) ? magic.path : null;
+  if (path) {
+    for (const key of PATH_LISTS) {
+      for (const name of spellNames(path[key])) spells.push({ name, tradition: "Mysticism" });
+    }
+  }
+
+  return spells;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -201,6 +282,8 @@ export function parseSheet(payload: unknown): SheetParseResult {
       initiativeModifier: armorEnc > 0 ? -initiativePenaltyFor(armorEnc) : 0,
       skills: skills.sort((a, b) => a.name.localeCompare(b.name)),
       movementRate: typeof payload.movementRate === "number" ? payload.movementRate : null,
+      weapons: weaponsFrom(equipment),
+      spells: spellsFrom(payload.magic),
       notes: typeof payload.concept === "string" && payload.concept !== "" ? payload.concept : null,
     },
     problems,
@@ -237,5 +320,8 @@ export function combatantFromSheet(sheet: SheetCharacter, id: string): Combatant
     locations,
     defeated: false,
     ...(sheet.notes ? { notes: sheet.notes } : {}),
+    ...(sheet.movementRate === null ? {} : { movementRate: sheet.movementRate }),
+    ...(sheet.weapons.length > 0 ? { weapons: sheet.weapons } : {}),
+    ...(sheet.spells.length > 0 ? { spells: sheet.spells } : {}),
   };
 }

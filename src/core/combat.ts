@@ -1,6 +1,6 @@
 import { applyDamage, applyHealing, type DamageOptions } from "./wounds";
 import { deriveAttributes, type Characteristics } from "./characteristics";
-import { fatigueRow, type FatigueLevel } from "./fatigue";
+import { applyMovementEffect, fatigueRow, type FatigueLevel } from "./fatigue";
 import { hitPointsFor, type BodyPart } from "./tables";
 import {
   SCHEMA_VERSION,
@@ -85,6 +85,14 @@ export type CombatEvent =
    * also cost them their luck.
    */
   | { type: "luck/desperateEffort"; combatantId: string }
+  /**
+   * A weapon's Hit Points, which fall when it is used to parry.
+   *
+   * Keyed by name rather than by index: the list is short, names are unique
+   * within it by construction, and an index would silently point at the wrong
+   * weapon the moment the list is reordered.
+   */
+  | { type: "weapon/hitPointsChanged"; combatantId: string; weapon: string; hitPoints: number }
   | {
       type: "location/damaged";
       combatantId: string;
@@ -182,6 +190,18 @@ export function currentLuckPoints(combatant: Combatant): number {
 export function currentMagicPoints(combatant: Combatant): number {
   const max = effectiveMaxMagicPoints(combatant);
   return Math.min(combatant.magicPoints ?? max, max);
+}
+
+/**
+ * Movement Rate after Fatigue, or `null` when nobody imported one.
+ *
+ * `null` rather than a default of six: guessing a human's rate for a creature
+ * that might be a horse would be a number the interface then presents as fact.
+ * Absent stays absent, and the Fatigue block goes on printing the words.
+ */
+export function effectiveMovementRate(combatant: Combatant): number | null {
+  if (combatant.movementRate === undefined) return null;
+  return applyMovementEffect(combatant.movementRate, fatigueRow(combatant.fatigue).movementEffect);
 }
 
 /**
@@ -376,6 +396,9 @@ function toStoredCharacter(combatant: Combatant): StoredCharacter {
     ...(combatant.maxLuckPoints !== undefined ? { maxLuckPoints: combatant.maxLuckPoints } : {}),
     ...(combatant.magicPoints !== undefined ? { magicPoints: combatant.magicPoints } : {}),
     ...(combatant.maxMagicPoints !== undefined ? { maxMagicPoints: combatant.maxMagicPoints } : {}),
+    ...(combatant.movementRate !== undefined ? { movementRate: combatant.movementRate } : {}),
+    ...(combatant.weapons ? { weapons: combatant.weapons } : {}),
+    ...(combatant.spells ? { spells: combatant.spells } : {}),
   };
 }
 
@@ -466,6 +489,9 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
           ...(stored.maxMagicPoints !== undefined
             ? { maxMagicPoints: stored.maxMagicPoints }
             : {}),
+          ...(stored.movementRate !== undefined ? { movementRate: stored.movementRate } : {}),
+          ...(stored.weapons ? { weapons: stored.weapons } : {}),
+          ...(stored.spells ? { spells: stored.spells } : {}),
         };
         return { ...merged, initiative: 0, actionPoints: effectiveMaxActionPoints(merged) };
       });
@@ -661,6 +687,28 @@ export function reduce(state: CombatState, event: CombatEvent): CombatState {
             }
           : combatant,
       );
+
+    case "weapon/hitPointsChanged":
+      return updateCombatant(state, event.combatantId, (combatant) => {
+        if (!combatant.weapons) return combatant;
+        return {
+          ...combatant,
+          weapons: combatant.weapons.map((weapon) =>
+            weapon.name === event.weapon
+              ? {
+                  ...weapon,
+                  // Not floored at the maximum only: a weapon repaired past what
+                  // it started with is somebody correcting an import, and a
+                  // weapon at zero is broken, which is a real state.
+                  hitPoints: Math.max(
+                    0,
+                    Math.min(weapon.maxHitPoints ?? event.hitPoints, event.hitPoints),
+                  ),
+                }
+              : weapon,
+          ),
+        };
+      });
 
     case "location/damaged": {
       const options: DamageOptions = { ignoreArmor: event.ignoreArmor ?? false };

@@ -69,6 +69,8 @@ const PLAYER_EDITABLE_EVENTS = new Set<CombatEvent["type"]>([
   "combatant/maxLuckPointsChanged",
   "combatant/maxMagicPointsChanged",
   "luck/desperateEffort",
+  /** A weapon breaks in the hand of whoever is parrying with it. */
+  "weapon/hitPointsChanged",
   /**
    * The armour penalty and any effect adjusting Action Points. Same side of the
    * line as the Characteristics they adjust — what you are wearing is yours.

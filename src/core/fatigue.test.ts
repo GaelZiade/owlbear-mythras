@@ -18,6 +18,7 @@ import {
   recoverFatigue,
   worsenFatigue,
   type FatigueLevel,
+  applyMovementEffect,
 } from "./fatigue";
 import { buildLocations, HUMANOID_PROFILE } from "./locations";
 import { createEmptyState, type Combatant, type CombatState } from "./types";
@@ -335,5 +336,43 @@ describe("Fatigue and the player permission line", () => {
       fatigue: "dead",
     };
     expect(isEventAllowedForPlayer(event, "player-1", state)).toBe(false);
+  });
+});
+
+describe("Fatigue applied to a Movement Rate", () => {
+  it("leaves the rate alone while Fresh or Winded", () => {
+    expect(applyMovementEffect(6, fatigueRow("fresh").movementEffect)).toBe(6);
+    expect(applyMovementEffect(6, fatigueRow("winded").movementEffect)).toBe(6);
+  });
+
+  it("subtracts the metres the table names", () => {
+    expect(applyMovementEffect(6, fatigueRow("tired").movementEffect)).toBe(5);
+    expect(applyMovementEffect(6, fatigueRow("wearied").movementEffect)).toBe(4);
+  });
+
+  /** The book's general rule: a division that leaves a fraction rounds up. */
+  it("halves upwards", () => {
+    expect(applyMovementEffect(6, fatigueRow("exhausted").movementEffect)).toBe(3);
+    expect(applyMovementEffect(7, fatigueRow("debilitated").movementEffect)).toBe(4);
+  });
+
+  it("stops the character outright from Incapacitated down", () => {
+    for (const level of ["incapacitated", "semi-conscious", "comatose", "dead"] as const) {
+      expect(applyMovementEffect(6, fatigueRow(level).movementEffect)).toBe(0);
+    }
+  });
+
+  /**
+   * Subtraction floors at one rather than zero. A slow creature penalised to
+   * nothing is tired, not rooted, and the table has its own word for rooted.
+   */
+  it("never subtracts a creature to a standstill", () => {
+    expect(applyMovementEffect(1, fatigueRow("wearied").movementEffect)).toBe(1);
+    expect(applyMovementEffect(1, fatigueRow("exhausted").movementEffect)).toBe(1);
+  });
+
+  it("keeps the printed wording alongside the arithmetic", () => {
+    expect(fatigueRow("exhausted").movement).toBe("Halved");
+    expect(fatigueRow("incapacitated").movement).toBe("Immobile");
   });
 });

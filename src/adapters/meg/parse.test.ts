@@ -6,6 +6,7 @@ import indexFixture from "./fixtures/index-slice.json";
 import {
   combatantFromCreature,
   parseCreatures,
+  parseMovement,
   parseIndex,
   parseRange,
   parseStrikeRank,
@@ -320,5 +321,52 @@ describe("Magic Points", () => {
     expect(value!.maxMagicPoints).toBe(15);
     // No Characteristics, so nothing re-derives over the statblock.
     expect(value!.characteristics).toBeUndefined();
+  });
+});
+
+describe("weapons, spells and movement", () => {
+  const { value } = combatantFromCreature(vinkolt, "c-1");
+
+  /**
+   * MEG files weapons under the combat style that wields them. The style is
+   * already imported as a skill; this is the kit that style swings.
+   */
+  it("flattens the weapons out of the combat styles", () => {
+    expect(value!.weapons?.map((weapon) => weapon.name)).toEqual([
+      "Dagger",
+      "Shortspear",
+      "Buckler Shield",
+    ]);
+  });
+
+  it("keeps damage as printed, and Hit Points as a resource", () => {
+    const spear = value!.weapons!.find(({ name }) => name === "Shortspear")!;
+    expect(spear.damage).toBe("1d8+1");
+    expect(spear.size).toBe("M");
+    expect(spear.reach).toBe("L");
+    expect(spear.armorPoints).toBe(4);
+    // Starts whole; parrying is what moves it.
+    expect(spear.hitPoints).toBe(5);
+    expect(spear.maxHitPoints).toBe(5);
+    expect(spear.effects).toBe("Impale");
+  });
+
+  it("imports every spell list, tagged with its tradition", () => {
+    const folk = value!.spells!.filter((spell) => spell.tradition === "Folk");
+    const theism = value!.spells!.filter((spell) => spell.tradition === "Theism");
+    expect(folk.map((spell) => spell.name)).toContain("Dragon Mask");
+    expect(folk).toHaveLength(8);
+    expect(theism).toHaveLength(5);
+    // Empty lists contribute nothing rather than an empty tradition.
+    expect(value!.spells!.some((spell) => spell.tradition === "Sorcery")).toBe(false);
+  });
+
+  it("takes the leading number of the movement string", () => {
+    expect(value!.movementRate).toBe(6);
+    expect(parseMovement("6")).toBe(6);
+    // Flying creatures carry a note beside the walking rate.
+    expect(parseMovement("6 (12 flying)")).toBe(6);
+    expect(parseMovement(undefined)).toBeNull();
+    expect(parseMovement("varies")).toBeNull();
   });
 });

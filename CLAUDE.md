@@ -123,17 +123,21 @@ interface and has rejected work for being "tosca".
 location, undo); Characteristics and every derived Attribute; Fatigue; skill
 rolls in a floating window with difficulty grades, criticals, fumbles and the
 ranges shown before the die; Luck and Magic Points as spendable pools with
-Desperate Effort; import from MEG, from a sheet builder's JSON, and by hand;
-token linking with sheets that survive leaving the fight; compressed persistence.
+Desperate Effort; Movement Rate with Fatigue applied to it; weapons as reference
+with breakable Hit Points; spell lists; import from MEG, from a sheet builder's
+JSON, and by hand; token linking with sheets that survive leaving the fight;
+compressed persistence.
 
 **Planned, in order.** The owner asked for stages, not everything at once:
 
 1. ~~Ranges before the die; Luck and Magic Points; derived Attributes readable
    without opening the editor.~~ Done.
-2. **Import what is already parsed and thrown away** — Movement Rate, weapon
-   AP/HP (weapons break when parrying, so they are a resource), spell lists.
+2. ~~Import what is already parsed and thrown away — Movement Rate, weapon
+   Armour and Hit Points, spell lists.~~ Done.
 3. **Passions** — import them, then use one to augment a roll, updating the
-   target and both ranges live.
+   target and both ranges live. The augment adds **20% of the Passion's value**,
+   not a flat 20, and the book does not say whether it lands before or after the
+   Difficulty Grade — that is ours to decide and record.
 4. **A glossary** of combat actions, Special Effects and situational modifiers,
    linked from the sheet where it is relevant and searchable where it is not.
    All ORC material, so legally fine; it is static content and does not touch the

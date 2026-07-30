@@ -213,3 +213,53 @@ describe("files that are not characters", () => {
     expect(parseSheet({ skills: { str: 1, con: 1, siz: 1, dex: 1, int: 1, pow: 1, cha: 1, skills: [{ name: "X", base: ["str"] }] } }).value!.name).toBe("Character");
   });
 });
+
+describe("weapons, spells and movement from the builder", () => {
+  const combatant = combatantFromSheet(jon, "c-jon");
+
+  it("imports the weapon with its grip, size, reach and Hit Points", () => {
+    const rapier = combatant.weapons![0]!;
+    expect(rapier.name).toBe("Rapier");
+    expect(rapier.damage).toBe("1d8");
+    expect(rapier.size).toBe("M");
+    expect(rapier.reach).toBe("L");
+    expect(rapier.armorPoints).toBe(5);
+    expect(rapier.hitPoints).toBe(8);
+    expect(rapier.maxHitPoints).toBe(8);
+  });
+
+  /**
+   * The builder writes the Special Effects a weapon grants space-separated, and
+   * one of them is two words. Splitting would invent an effect called Street.
+   */
+  it("keeps the effects string whole rather than splitting it", () => {
+    expect(combatant.weapons![0]!.effects).toBe("Impale Street Brawler");
+  });
+
+  it("carries the Movement Rate the sheet states", () => {
+    expect(combatant.movementRate).toBe(6);
+  });
+
+  /** Jon knows no magic, and an empty list is absent rather than empty. */
+  it("leaves spells off a character with none", () => {
+    expect(combatant.spells).toBeUndefined();
+  });
+
+  it("reads each tradition's list, including a Path's three", () => {
+    const { value } = parseSheet({
+      ...jonSnow,
+      magic: {
+        folk: ["Bladesharp", "Heal"],
+        miracles: [{ name: "Shield" }],
+        sorcery: [],
+        path: { path: "Way of Stone", augmentations: ["Stoneskin"], invocations: [], enhancements: [] },
+      },
+    });
+    expect(value!.spells).toEqual([
+      { name: "Bladesharp", tradition: "Folk" },
+      { name: "Heal", tradition: "Folk" },
+      { name: "Shield", tradition: "Theism" },
+      { name: "Stoneskin", tradition: "Mysticism" },
+    ]);
+  });
+});

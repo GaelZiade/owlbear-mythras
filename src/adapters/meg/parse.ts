@@ -1,4 +1,4 @@
-import type { Combatant, HitLocation } from "../../core/types";
+import type { Combatant, HitLocation, Spell, Weapon } from "../../core/types";
 
 /**
  * Reading Mythras Enemy Generator payloads.
@@ -15,8 +15,12 @@ import type { Combatant, HitLocation } from "../../core/types";
  * the first pass as "not modelled by the engine", which was true and beside the
  * point: without them a GM cannot roll the creature they have just imported.
  *
- * What is still dropped: characteristics, spells, cults and spirits. MEG's own
- * numbers are final, so we never re-derive anything from STR/CON via §1.4.
+ * Weapons and spell lists are kept too, on the same reasoning: a creature that
+ * casts is unplayable without knowing what it casts, and a weapon's Hit Points
+ * change during a fight because parrying with it is how it breaks.
+ *
+ * What is still dropped: characteristics, cults and spirits. MEG's own numbers
+ * are final, so we never re-derive anything from STR/CON via §1.4.
  * `notes` is kept because for many entries the mechanics live there ("Rabble",
  * "***Total 5 Hitpoints***", ability descriptions) rather than in the statblock.
  */
@@ -43,6 +47,69 @@ export interface MegCreature {
   notes?: string;
   /** Percentages, already rolled. Combat styles are flagged so they sort apart. */
   skills: { name: string; value: number; combatStyle: boolean }[];
+  /** Flattened out of the combat styles that carry them. */
+  weapons: Weapon[];
+  spells: Spell[];
+}
+
+/** MEG's four spell lists, and the tradition each one is. */
+const SPELL_LISTS = [
+  ["folk_spells", "Folk"],
+  ["theism_spells", "Theism"],
+  ["sorcery_spells", "Sorcery"],
+  ["mysticism_spells", "Mysticism"],
+] as const;
+
+function spellsFromCreature(raw: Record<string, unknown>): Spell[] {
+  const spells: Spell[] = [];
+  for (const [key, tradition] of SPELL_LISTS) {
+    const list = raw[key];
+    if (!Array.isArray(list)) continue;
+    for (const name of list) {
+      if (typeof name === "string" && name !== "") spells.push({ name, tradition });
+    }
+  }
+  return spells;
+}
+
+/**
+ * Weapons, which MEG files under the combat style that wields them.
+ *
+ * The style itself is already imported as a skill; this is the kit. Damage and
+ * reach are carried as printed because they are read off the sheet, and Hit
+ * Points are carried because a parry puts the weapon in the way of the blow —
+ * that is the one number here that changes during a fight.
+ *
+ * Deduplicated by name: a creature with two styles sharing a dagger should carry
+ * one dagger.
+ */
+function weaponsFromCreature(raw: Record<string, unknown>): Weapon[] {
+  if (!Array.isArray(raw.combat_styles)) return [];
+
+  const byName = new Map<string, Weapon>();
+  for (const style of raw.combat_styles) {
+    if (!isRecord(style) || !Array.isArray(style.weapons)) continue;
+    for (const entry of style.weapons) {
+      if (!isRecord(entry) || typeof entry.name !== "string" || entry.name === "") continue;
+      if (byName.has(entry.name)) continue;
+
+      const hitPoints = typeof entry.hp === "number" ? Math.max(0, entry.hp) : undefined;
+      byName.set(entry.name, {
+        name: entry.name,
+        ...(typeof entry.damage === "string" && entry.damage !== ""
+          ? { damage: entry.damage }
+          : {}),
+        ...(typeof entry.size === "string" && entry.size !== "" ? { size: entry.size } : {}),
+        ...(typeof entry.reach === "string" && entry.reach !== "" ? { reach: entry.reach } : {}),
+        ...(typeof entry.ap === "number" ? { armorPoints: Math.max(0, entry.ap) } : {}),
+        ...(hitPoints === undefined ? {} : { hitPoints, maxHitPoints: hitPoints }),
+        ...(typeof entry.effects === "string" && entry.effects !== ""
+          ? { effects: entry.effects }
+          : {}),
+      });
+    }
+  }
+  return [...byName.values()];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -84,6 +151,20 @@ export function parseRange(range: string): readonly [number, number] | null {
  */
 export function parseStrikeRank(strikeRank: string): number | null {
   const leading = /^\s*(-?\d+)/.exec(strikeRank);
+  return leading ? Number.parseInt(leading[1]!, 10) : null;
+}
+
+/**
+ * Movement Rate out of MEG's string.
+ *
+ * Usually a bare `"6"`, but flying and burrowing creatures carry a note beside
+ * it — `"6 (12 flying)"`. The leading number is the one that walks, which is the
+ * one the Fatigue table halves. The rest stays in the statblock rather than in a
+ * field that arithmetic is done to.
+ */
+export function parseMovement(movement: string | undefined): number | null {
+  if (movement === undefined) return null;
+  const leading = /^\s*(\d+)/.exec(movement);
   return leading ? Number.parseInt(leading[1]!, 10) : null;
 }
 
@@ -210,6 +291,8 @@ export function parseCreatures(payload: unknown): ParseResult<MegCreature[]> {
       },
       ...(typeof raw.notes === "string" ? { notes: raw.notes } : {}),
       skills: skillsFromCreature(raw),
+      weapons: weaponsFromCreature(raw),
+      spells: spellsFromCreature(raw),
     });
   }
 
@@ -304,6 +387,7 @@ export function combatantFromCreature(
 
   const actionPoints = Math.max(0, maxActionPoints ?? 1);
 
+  const movementRate = parseMovement(creature.attributes.movement);
   const notes = creature.notes?.trim();
   const skills = (creature.skills ?? []).map(({ name, value, combatStyle }) => ({
     name,
@@ -334,6 +418,15 @@ export function combatantFromCreature(
       ...(creature.attributes.magic_points !== undefined
         ? { maxMagicPoints: Math.max(0, creature.attributes.magic_points) }
         : {}),
+      /*
+       * MEG writes Movement as a string — `"6"`, and sometimes a note beside it
+       * for creatures that fly or burrow. Only a leading number is taken; the
+       * rest belongs in the statblock, not in a field that gets halved by
+       * Fatigue.
+       */
+      ...(movementRate === null ? {} : { movementRate }),
+      ...(creature.weapons.length > 0 ? { weapons: creature.weapons } : {}),
+      ...(creature.spells.length > 0 ? { spells: creature.spells } : {}),
       ...(notes ? { notes } : {}),
       ...(skills.length > 0 ? { skills } : {}),
     },
