@@ -102,6 +102,18 @@ export interface Combatant {
    */
   maxMagicPoints?: number;
   /**
+   * Movement Rate in metres, absent when the source did not say.
+   *
+   * Not derived from anything: *"Movement is not calculated from Characteristics
+   * but is a default value which differs from species to species."* Both
+   * importers carried it already and both used to drop it on the floor.
+   */
+  movementRate?: number;
+  /** Weapons carried, absent when none were imported. */
+  weapons?: Weapon[];
+  /** Spells known, absent when none were imported. */
+  spells?: Spell[];
+  /**
    * Fatigue level, absent meaning Fresh.
    *
    * Optional rather than required so a fight saved by an earlier build still
@@ -177,6 +189,47 @@ export interface Skill {
 }
 
 /**
+ * A weapon, as reference and as a resource.
+ *
+ * Mostly the former: damage, size and reach are read off the sheet and rolled
+ * with real dice, so they are carried as the source printed them rather than
+ * parsed. `"1d8+1"` is a string here on purpose — nothing in this codebase rolls
+ * it, and turning it into structure would invite something to.
+ *
+ * Hit Points are the exception and the reason weapons are here at all. A parry
+ * puts the weapon in the way of the blow, so weapons take damage and break; that
+ * is a number that changes during a fight, which makes it this tracker's job.
+ */
+export interface Weapon {
+  name: string;
+  /** Damage dice as printed. Read, never rolled. */
+  damage?: string;
+  /** S, M, L, H — the size that decides how much of a blow a parry stops. */
+  size?: string;
+  reach?: string;
+  /** Armour Points: what the weapon shrugs off before losing Hit Points. */
+  armorPoints?: number;
+  hitPoints?: number;
+  maxHitPoints?: number;
+  /**
+   * Special Effects the weapon grants, as the source writes them.
+   *
+   * Kept as one string rather than a list because the two sources disagree about
+   * the separator — MEG writes `"Bleed, Impale"` and the sheet builder writes
+   * `"Impale Street Brawler"`, which cannot be split on spaces without inventing
+   * an effect called Street.
+   */
+  effects?: string;
+}
+
+/** A spell, filed under the tradition its source listed it in. */
+export interface Spell {
+  name: string;
+  /** "Folk", "Theism", "Sorcery", "Mysticism" — absent when the source did not say. */
+  tradition?: string;
+}
+
+/**
  * A character's durable half, kept when they leave the initiative order.
  *
  * The roster is not the sheet. Pulling somebody out of the fight used to
@@ -204,6 +257,10 @@ export interface StoredCharacter {
   maxLuckPoints?: number;
   magicPoints?: number;
   maxMagicPoints?: number;
+  movementRate?: number;
+  /** Kept broken, for the same reason wounds are kept whole. */
+  weapons?: Weapon[];
+  spells?: Spell[];
   /** Kept whole, wounds included: someone pulled out of a fight is still hurt. */
   locations: HitLocation[];
 }

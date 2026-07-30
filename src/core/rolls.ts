@@ -100,8 +100,16 @@ export function hardestGrade(grades: readonly DifficultyGrade[]): DifficultyGrad
  * zero target both mean "only the automatic 01-05 can save you", and a negative
  * one would also make the critical range negative.
  *
- * Rounding: the book gives no rule for a fractional target, so values are
- * rounded down. A skill of 33 at Hard is 22, not 22.11.
+ * Rounding: **up**, and this was wrong here until the SRD arrived. The comment
+ * that used to sit on this line said the book gives no rule for a fractional
+ * target and rounded down on that basis. The book gives a general one, in a
+ * section of its own: *"Whenever a division result creates a fraction, always
+ * round up to the whole number."* Reducing a skill by a third is a division that
+ * creates a fraction, so 33 at Hard is 22 either way but 65 at Hard is 44, not
+ * 43, and 65 at Formidable is 33, not 32.
+ *
+ * The same rule is what `criticalThreshold` already followed, using the worked
+ * example the book prints beside it. One rule, applied in one direction.
  */
 export function modifiedSkill(
   skill: number,
@@ -113,7 +121,7 @@ export function modifiedSkill(
 
   const raw =
     method === "multiplier" ? skill * (row.multiplier ?? 1) : skill + row.simplified;
-  return Math.max(0, Math.floor(raw));
+  return Math.max(0, Math.ceil(raw));
 }
 
 /**

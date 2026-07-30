@@ -83,9 +83,16 @@ describe("modifying a skill by grade", () => {
     expect(modifiedSkill(120, "formidable", "simplified")).toBe(80);
   });
 
-  it("rounds a fractional target down", () => {
-    expect(modifiedSkill(33, "hard")).toBe(22);
-    expect(modifiedSkill(35, "easy")).toBe(52);
+  /**
+   * *"Whenever a division result creates a fraction, always round up to the
+   * whole number."* A general rule, in a section of its own, and the same one
+   * the critical range follows. It rounded down here until the SRD arrived.
+   */
+  it("rounds a fractional target up", () => {
+    expect(modifiedSkill(33, "hard")).toBe(22); // 22.0 exactly
+    expect(modifiedSkill(65, "hard")).toBe(44); // 43.33
+    expect(modifiedSkill(65, "formidable")).toBe(33); // 32.5
+    expect(modifiedSkill(35, "easy")).toBe(53); // 52.5
   });
 
   it("never goes below zero", () => {
