@@ -244,6 +244,42 @@ them a Path with three sub-lists. They are the other half of tracking Magic
 Points: a pool is only useful next to what it can be spent on. Read-only, since
 casting is a decision and its cost is a subtraction the player makes.
 
+### 1.12 Gaits, and the one rule that does not come from the SRD
+
+Run is Move ×3, Sprint is Move ×5, an action is one Difficulty Grade harder at a
+Run and two at a Sprint, and most proactive actions are unavailable above a Walk.
+
+**None of that is in *Mythras Imperative*.** The SRD gives a Movement Rate and a
+Move Action and then refers to "the rules for Walk, Run, and Sprint set forth
+above" — a table it never prints. Those rules are in the Mythras core rulebook,
+which the SRD itself designates as Reserved Material, so they cannot be
+reproduced here. What is implemented is the **Community Errata**, published
+openly at srd.mythras.net to fill exactly this gap.
+
+It is the only thing in `core/` that cannot be traced to a line in
+`reference/`, which is why it lives in a module of its own, says so in its header,
+names the source in its tests, and is recorded in `reference/README.md` under a
+heading about implementing from outside the document. A table not using the errata
+is playing something slightly different here and nowhere else.
+
+Two things fell out of implementing it.
+
+**Fatigue applies before the multiplier.** The table halves a *Movement Rate*, and
+the gait multiplies that rate. The other order lets an Exhausted character sprint
+30 metres rather than 15, which is the halving quietly undone.
+
+**A gait shifts a grade; it does not compete to be one.** `hardestGrade` picks the
+worst of several grades in play at once — Fatigue against a GM's ruling — and
+that is settled first. `harderBy` then moves along the table from wherever that
+landed. Doing it the other way, treating the gait as another grade to be worst of,
+would discard the gait entirely whenever Fatigue happened to be worse, which is
+not what "one Grade harder to pull off at a Run" means.
+
+Whether the character is running is not stored, and the proactive-action
+restriction is printed rather than enforced. Which action is being attempted is a
+decision at the table, and the errata's own exceptions — charging, Skirmishing
+weapons — are exactly the kind of judgement this extension leaves alone.
+
 ---
 
 ## 2. Functional decisions (made by the project owner)

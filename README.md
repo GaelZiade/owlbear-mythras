@@ -46,6 +46,12 @@ initiative by Cycles, Action Points, Fatigue, and wounds by hit location.
 - **Luck and Magic Points** as pools that are spent and refill, derived from POW
   and never overwritten by hand. Out of Action Points, a Luck Point buys one back
   — offered only where the rules offer it.
+- **Movement in metres**, with Fatigue applied and Run and Sprint worked out from
+  it, so nobody multiplies a halved rate by three mid-fight. Rolling at a Run or
+  Sprint shifts the Difficulty Grade with it.
+- **Weapons** as reference — damage, size, reach and the Special Effects they
+  grant — with Armour and Hit Points tracked, because parrying is how a weapon
+  breaks. **Spells** listed beside the Magic Points that cast them.
 - **Sheets survive leaving the fight.** Remove somebody from the tracker and add
   their token again: Characteristics, armour, owner, wounds and notes come back.
 - **Out of the fight** toggle that skips a combatant in the initiative order.
@@ -133,7 +139,8 @@ src/
   adapters/   Owlbear integration: persistence, sync, tokens. MEG and sheet import.
   ui/         React components.
   dev/        Stubbed SDK for `dev:mock`. Never shipped.
-reference/    The Imperative SRD. Every rule should trace to a line in it.
+reference/    The Imperative SRD. Every rule should trace to a line in it —
+              with one labelled exception, recorded in reference/README.md.
 ```
 
 The rule everything else rests on: **`core/` does not know Owlbear exists**. The
@@ -178,11 +185,11 @@ Done:
    criticals, fumbles, and both ranges shown before the die is thrown.
 5. **Sheets** — imported from a builder's JSON, linked to tokens, and kept when
    a combatant leaves the fight.
+6. **Movement, weapons and spells** — everything both importers already carried
+   and used to drop.
 
 Next, in order:
 
-6. **Import what is already parsed and dropped** — Movement Rate, weapon Armour
-   and Hit Points, spell lists.
 7. **Passions**, including using one to augment a roll.
 8. **A glossary** of combat actions, Special Effects and situational modifiers,
    linked from the sheet where it applies and searchable where it does not.

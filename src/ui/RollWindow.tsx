@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { readRollContext } from "../adapters/owlbear/windows";
+import { GAIT_TABLE, gaitRow, harderBy, type Gait } from "../core/movement";
 
 import {
   DIFFICULTY_TABLE,
@@ -66,6 +67,7 @@ export function RollWindow() {
   const [query, setQuery] = useState("");
   const [skillName, setSkillName] = useState<string | null>(null);
   const [grade, setGrade] = useState<DifficultyGrade>("standard");
+  const [gait, setGait] = useState<Gait>("walk");
   const [result, setResult] = useState<RollResult | null>(null);
 
   if (!context) return <p className="notice">Nothing to roll. Open this from a combatant.</p>;
@@ -81,7 +83,15 @@ export function RollWindow() {
    * not the person clicking remembers that.
    */
   const fatigueGrade = context.fatigueGrade as DifficultyGrade | null;
-  const applied = hardestGrade(fatigueGrade ? [grade, fatigueGrade] : [grade]);
+  /*
+   * Two different operations, in this order. Fatigue and the GM's ruling are
+   * grades in play at once, so the hardest wins; moving fast then shifts along
+   * the table from wherever that landed. Shifting first and then taking the
+   * hardest would quietly discard the Gait whenever Fatigue was worse, which is
+   * not what "one Grade harder to pull off at a Run" says.
+   */
+  const situational = hardestGrade(fatigueGrade ? [grade, fatigueGrade] : [grade]);
+  const applied = harderBy(situational, gaitRow(gait).gradeShift);
   const target = modifiedSkill(skill.value, applied, METHOD);
   const ranges = rollRanges(skill.value, applied, METHOD);
 
@@ -146,9 +156,50 @@ export function RollWindow() {
           </select>
         </label>
 
+        {/*
+          Gait sits beside Difficulty rather than inside it because it is a
+          different operation — a shift along the table, not a grade competing
+          for the hardest. Defaults to Walk, which costs nothing and is what
+          almost every roll is made at.
+        */}
+        <label className="roll-grade">
+          Gait
+          <select
+            value={gait}
+            onChange={(event) => {
+              setGait(event.target.value as Gait);
+              setResult(null);
+            }}
+          >
+            {GAIT_TABLE.map((row) => (
+              <option key={row.gait} value={row.gait}>
+                {row.name}
+                {row.gradeShift > 0 && ` — ${row.gradeShift} grade${row.gradeShift > 1 ? "s" : ""} harder`}
+              </option>
+            ))}
+          </select>
+        </label>
+
         {applied !== grade && (
           <p className="roll-note">
-            {context.fatigueName} makes this {DIFFICULTY_TABLE.find((r) => r.grade === applied)?.name}.
+            {[
+              fatigueGrade && situational !== grade ? context.fatigueName : null,
+              gait !== "walk" ? gaitRow(gait).name.toLowerCase() : null,
+            ]
+              .filter(Boolean)
+              .join(" and ")}{" "}
+            makes this {DIFFICULTY_TABLE.find((r) => r.grade === applied)?.name}.
+          </p>
+        )}
+
+        {/*
+          Said, not enforced. Which action is being attempted is a decision at
+          the table, and the exceptions — charging, Skirmishing weapons — are
+          exactly the kind of judgement this extension leaves alone.
+        */}
+        {!gaitRow(gait).proactiveActions && (
+          <p className="roll-note">
+            Most proactive actions are unavailable at a {gaitRow(gait).name.toLowerCase()}.
           </p>
         )}
 

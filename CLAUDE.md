@@ -28,7 +28,7 @@ tracks resources; the rules live with the people playing.
 
 | Command | What it does |
 |---|---|
-| `npm test` | Vitest. 329 tests, all of `core/` and the adapters |
+| `npm test` | Vitest. 339 tests, all of `core/` and the adapters |
 | `npm run typecheck` | `tsc --noEmit`. `exactOptionalPropertyTypes` is on |
 | `npm run dev` | Dev server for use inside Owlbear (port 5173, pinned) |
 | `npm run dev:mock` | Stubbed SDK on 5174, viewable in a plain browser tab |
@@ -60,9 +60,11 @@ from memory.** Two recent examples of why: a Passion augment adds 20% *of the
 Passion's value*, not a flat 20; and the eighth Difficulty Grade is called
 *Hopeless*, which this code got wrong until the SRD arrived.
 
-`reference/README.md` records what the SRD does **not** settle. Where it is
-silent, say so rather than filling the gap from the core rules — those are
-Reserved Material and cannot be reproduced.
+`reference/README.md` records what the SRD does **not** settle, and the one thing
+implemented from outside it. Where the SRD is silent, say so rather than filling
+the gap from the core rules — those are Reserved Material and cannot be
+reproduced. Gaits are the single exception, taken from the Community Errata and
+labelled as such in `core/movement.ts`, its tests and `reference/README.md`.
 
 The extension also carries MEG and Chaosium notices as a condition of importing
 MEG content. They are in `src/ui/Notices.tsx`, reachable by players as well as
@@ -123,7 +125,7 @@ interface and has rejected work for being "tosca".
 location, undo); Characteristics and every derived Attribute; Fatigue; skill
 rolls in a floating window with difficulty grades, criticals, fumbles and the
 ranges shown before the die; Luck and Magic Points as spendable pools with
-Desperate Effort; Movement Rate with Fatigue applied to it; weapons as reference
+Desperate Effort; Movement Rate with Fatigue and gaits applied to it; weapons as reference
 with breakable Hit Points; spell lists; import from MEG, from a sheet builder's
 JSON, and by hand; token linking with sheets that survive leaving the fight;
 compressed persistence.

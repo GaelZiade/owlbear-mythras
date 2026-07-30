@@ -14,6 +14,7 @@ import {
   effectiveMovementRate,
 } from "../core/combat";
 import { deriveAttributes } from "../core/characteristics";
+import { GAIT_TABLE, movementForGait } from "../core/movement";
 import {
   FATIGUE_TABLE,
   fatigueRow,
@@ -199,6 +200,23 @@ function Resources({ combatant, editable }: { combatant: Combatant; editable: bo
               </dd>
             </div>
           )}
+        </dl>
+      )}
+
+      {/*
+        Run and Sprint as distances rather than multipliers, because ×3 of a
+        halved rate is a sum somebody would otherwise do while a fight waits.
+        Hidden when the character cannot move at all, where three zeroes say
+        nothing the Movement line above has not already said.
+      */}
+      {movement !== null && movement > 0 && (
+        <dl className="gaits">
+          {GAIT_TABLE.filter(({ gait }) => gait !== "walk").map((row) => (
+            <div key={row.gait}>
+              <dt>{row.name}</dt>
+              <dd>{movementForGait(movement, row.gait)} m</dd>
+            </div>
+          ))}
         </dl>
       )}
     </div>

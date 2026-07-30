@@ -45,3 +45,25 @@ Known gaps that have come up so far:
   running and sprinting are here — assessing while Running is a Hard Perception
   roll, Sprinting Formidable, and a sprinting target is Formidable to shoot at —
   but the distances are not.
+
+  **Filled from the Community Errata**, not from this file. See below.
+
+## Where something is implemented from outside this document
+
+One thing so far, and it is worth naming loudly, because everything else in
+`core/` is held to "trace it to a line in the SRD" and this cannot be.
+
+**Gaits** (`core/movement.ts`) — Run at ×3 and Sprint at ×5, an action one
+Difficulty Grade harder at a Run and two at a Sprint, and most proactive actions
+unavailable above a Walk. The published *Mythras Imperative* has no Gait rules at
+all; they are in the Mythras core rulebook, which this document designates as
+Reserved Material and which therefore cannot be reproduced here. The figures
+implemented are the **Community Errata**'s, published openly at
+<https://srd.mythras.net>, which exists precisely to fill gaps like this one.
+
+Two consequences worth keeping in mind:
+
+- If the errata is ever revised, `movement.ts` is the only file to revisit, and
+  its tests name the source in their own description.
+- A table that does not use the Community Errata is playing something slightly
+  different here, and nowhere else in the extension.

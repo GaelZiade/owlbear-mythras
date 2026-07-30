@@ -1050,6 +1050,34 @@ input[type="number"]::-webkit-inner-spin-button {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * Run and Sprint, in metres. Dimmer and tighter than the Attributes above: they
+ * are the same fact restated at a different speed, not four more numbers.
+ */
+.gaits {
+  flex: 1 1 100%;
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+.gaits div {
+  display: flex;
+  gap: 4px;
+}
+
+.gaits dt {
+  color: var(--text-off);
+}
+
+.gaits dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- weapons and spells ---------- */
 
 .kit {
